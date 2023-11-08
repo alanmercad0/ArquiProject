@@ -14,12 +14,16 @@ sprite2_x: .res 1   ; Allocate memory for sprite 2 position
 sprite2_y: .res 1
 sprite2_dir_x: .res 1  ; Define direction for sprite 2
 sprite2_dir_y: .res 1
-.exportzp player_x, player_y, player_dir_x, player_dir_y, sprite1_x, sprite1_y, sprite1_dir_x, sprite1_dir_y, sprite2_x, sprite2_y, sprite2_dir_x, sprite2_dir_y
+ppuctrl_settings: .res 1
+pad1: .res 1
+.exportzp player_x, player_y, player_dir_x, player_dir_y, sprite1_x, sprite1_y, sprite1_dir_x, sprite1_dir_y, sprite2_x, sprite2_y, sprite2_dir_x, sprite2_dir_y, pad1
 
 .segment "CODE"
 .proc irq_handler
   RTI
 .endproc
+
+.import read_controller1
 
 .proc nmi_handler
   LDA #$00
@@ -27,6 +31,8 @@ sprite2_dir_y: .res 1
   LDA #$02
   STA OAMDMA
 	LDA #$00
+
+  JSR read_controller1
 
   ; update tiles *after* DMA transfer
 	JSR update_player
@@ -78,6 +84,7 @@ vblankwait:       ; wait for another vblank before continuing
   BPL vblankwait
 
   LDA #%10010000  ; turn on NMIs, sprites use first pattern table
+	STA ppuctrl_settings
   STA PPUCTRL
   LDA #%00011110  ; turn on screen
   STA PPUMASK
@@ -176,29 +183,51 @@ fifth_row:
   TYA
   PHA
 
-  ; Update player_x
-  LDA player_x
-  CMP #$e0
-  BCC not_at_right_edge_x
-  LDA #$00
-  STA player_dir_x    ; Start moving left
-  JMP direction_set_x
-not_at_right_edge_x:
-  LDA player_x
-  CMP #$10
-  BCS direction_set_x
-  LDA #$01
-  STA player_dir_x   ; Start moving right
-direction_set_x:
-  LDA player_dir_x
-  CMP #$01
-  BEQ move_right_x
-  DEC player_x
-  DEC player_x  ; Increase the decrement to move faster in X
-  JMP exit_subroutine_xy
-move_right_x:
+  
+  LDA pad1        ; Load button presses
+  AND #BTN_LEFT   ; Filter out all but Left
+  BEQ check_right ; If result is zero, left not pressed
+  DEC player_x  ; If the branch is not taken, move player left
+check_right:
+  LDA pad1
+  AND #BTN_RIGHT
+  BEQ check_up
   INC player_x
-  INC player_x  ; Increase the increment to move faster in X
+check_up:
+  LDA pad1
+  AND #BTN_UP
+  BEQ check_down
+  DEC player_y
+check_down:
+  LDA pad1
+  AND #BTN_DOWN
+  BEQ done_checking
+  INC player_y
+done_checking:
+
+;   ; Update player_x
+;   LDA player_x
+;   CMP #$e0
+;   BCC not_at_right_edge_x
+;   LDA #$00
+;   STA player_dir_x    ; Start moving left
+;   JMP direction_set_x
+; not_at_right_edge_x:
+;   LDA player_x
+;   CMP #$10
+;   BCS direction_set_x
+;   LDA #$01
+;   STA player_dir_x   ; Start moving right
+; direction_set_x:
+;   LDA player_dir_x
+;   CMP #$01
+;   BEQ move_right_x
+;   DEC player_x
+;   DEC player_x  ; Increase the decrement to move faster in X
+;   JMP exit_subroutine_xy
+; move_right_x:
+;   INC player_x
+;   INC player_x  ; Increase the increment to move faster in X
 
   ; Update player_y
 ;   LDA player_y
@@ -224,7 +253,7 @@ move_right_x:
 ;   INC player_y
 ;   INC player_y  ; Increase the increment to move faster in Y
 
-exit_subroutine_xy:
+; exit_subroutine_xy:
   ; All done, clean up and return
   PLA
   TAY
