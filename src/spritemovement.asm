@@ -6,9 +6,11 @@ player_x: .res 1
 player_y: .res 1
 player_dir_x: .res 1
 player_dir_y: .res 1
+velocity_y: .res 1
 ppuctrl_settings: .res 1
 pad1: .res 1
-.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1
+tmp: .res 1
+.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp
 
 .segment "CODE"
 .proc irq_handler
@@ -59,9 +61,9 @@ load_palettes:
 	LDA PPUSTATUS
 	LDA #$23
 	STA PPUADDR
-	LDA #$c2
+	LDA #$a2
 	STA PPUADDR
-	LDA #%01000000
+	LDA #%11000000
 	STA PPUDATA
 
 	LDA PPUSTATUS
@@ -95,6 +97,29 @@ forever:
   TYA
   PHA
 
+  LDX player_x
+  LDY player_y
+  JSR CheckCollide
+  BEQ collides
+  LDY player_y
+  DEY
+  STY player_y
+
+
+
+collides:
+  LDY player_y
+  INY
+  STY player_y
+
+  ; INC player_y
+  ; INC player_y
+
+  ; DEC player_y ; Does collide
+  ; DEC player_y
+
+
+; continue:
   LDA pad1        ; Load button presses
   AND #BTN_LEFT   ; Filter out all but Left
   BEQ check_right ; If result is zero, left not pressed
@@ -116,13 +141,35 @@ check_up:
   LDA pad1
   AND #BTN_UP
   BEQ check_down
-  DEC player_y
+
+  LDX player_x
+  LDY player_y
+  JSR CheckCollide
+  BEQ check_down
+
+  LDX #$10
+jump:
+  LDY player_y
+  DEY
+  DEY
+  STY player_y
+
+  DEX
+  CPX #$00
+  BEQ check_down
+
+  JMP jump
+
 
 check_down:
   LDA pad1
   AND #BTN_DOWN
   BEQ done_checking
-  INC player_y
+
+  LDY player_y
+  INY
+  INY
+  STY player_y
 
 done_checking:
 
@@ -135,6 +182,46 @@ done_checking:
   RTS
 .endproc
 
+.proc CheckCollide
+  TXA
+
+  LSR
+  LSR
+  LSR
+  LSR
+  LSR
+  LSR
+
+  STA tmp
+
+  TYA 
+
+  LSR
+  LSR
+  LSR
+
+  ASL
+  ASL
+
+  CLC
+  ADC tmp
+
+  TAY
+  TXA
+
+  LSR 
+  LSR 
+  LSR
+
+  AND #%0111
+  TAX
+
+  LDA CollisionMap, Y
+  AND BitMask, X
+
+  RTS
+.endproc
+
 .proc draw_player
   ; save registers
   PHP
@@ -144,10 +231,7 @@ done_checking:
   TYA
   PHA
 
-  ; LDA pad1
-  ; AND #BTN_LEFT
-  ; BEQ go_right
-
+  ; Check which direction player is facing
   LDA FACING
   CMP #%00000001
   BEQ go_left
@@ -237,15 +321,60 @@ continue:
 
 .segment "RODATA"
 palettes:
-.byte $3c, $03, $14, $23
-.byte $3c, $15, $0f, $37
-.byte $3c, $15, $0f, $37
-.byte $3c, $15, $0f, $37
+.byte $3c, $03, $14, $23 ; Background
+.byte $3c, $15, $15, $15
+.byte $3c, $0f, $0f, $0f
+.byte $3c, $37, $37, $37
 
-.byte $3c, $15, $0f, $37
+.byte $3c, $15, $0f, $37 ; Sprite
 .byte $3c, $19, $09, $29
 .byte $3c, $19, $09, $29
 .byte $3c, $19, $09, $29
+
+CollisionMap:
+  .byte %11111111, %11111111, %11111111, %11111111
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000001, %10000000, %00000110, %00000001
+
+  .byte %10011110, %00000000, %00000001, %11100001
+  .byte %10000110, %00001111, %11000001, %10000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000001, %11111111, %11111110, %00000001
+  .byte %10000000, %11111111, %11111100, %00000001
+  .byte %10000000, %01111111, %11111000, %00000001
+  .byte %10000000, %00011111, %11100000, %00000001
+  .byte %10000000, %00001111, %11000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %10000000, %00000000, %00000000, %00000001
+  .byte %11111111, %11111111, %11111111, %11111111
+
+BitMask:
+  .byte %10000000
+  .byte %01000000
+  .byte %00100000
+  .byte %00010000
+  .byte %00001000
+  .byte %00000100
+  .byte %00000010
+  .byte %00000001
+
 
 .segment "CHR"
 .incbin "initialIdeas.chr"
