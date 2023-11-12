@@ -6,6 +6,9 @@ player_x: .res 1
 player_y: .res 1
 player_dir_x: .res 1
 player_dir_y: .res 1
+
+player_animation: .res 1  ; Added player_animation variable
+
 sprite1_x: .res 1   ; Allocate memory for sprite 1 position
 sprite1_y: .res 1
 sprite1_dir_x: .res 1  ; Define direction for sprite 1
@@ -14,7 +17,8 @@ sprite2_x: .res 1   ; Allocate memory for sprite 2 position
 sprite2_y: .res 1
 sprite2_dir_x: .res 1  ; Define direction for sprite 2
 sprite2_dir_y: .res 1
-.exportzp player_x, player_y, player_dir_x, player_dir_y, sprite1_x, sprite1_y, sprite1_dir_x, sprite1_dir_y, sprite2_x, sprite2_y, sprite2_dir_x, sprite2_dir_y
+.exportzp player_x, player_y, player_dir_x, player_dir_y, player_animation, sprite1_x, sprite1_y, sprite1_dir_x, sprite1_dir_y, sprite2_x, sprite2_y, sprite2_dir_x, sprite2_dir_y
+
 
 .segment "CODE"
 .proc irq_handler
@@ -82,6 +86,24 @@ vblankwait:       ; wait for another vblank before continuing
   LDA #%00011110  ; turn on screen
   STA PPUMASK
 
+  ; Increment player_animation counter to switch frames
+  LDA player_animation
+  CLC
+  ADC #$01
+  STA player_animation
+
+  ; Check if player_animation exceeds the maximum frame value
+  LDA player_animation
+  CMP #$04  ; Adjust the value based on your maximum frame value (here, $04 is one more than the highest frame value)
+  BCC not_at_max_value  ; Branch if not at max value
+
+  ; Reset player_animation to the starting frame
+  LDA #$00  ; Set it to the value of the first frame
+  STA player_animation
+
+  not_at_max_value:
+  ; Continue with the rest of your code
+
 forever:
   JMP forever
 .endproc
@@ -101,7 +123,7 @@ first_row:
 	LDA #$21
 	STA PPUADDR
 	STY PPUADDR
-	LDX #$02
+	LDX #$30
 	STX PPUDATA
   INY
   CPY #$f9
@@ -114,7 +136,7 @@ second_row:
 	LDA #$22
 	STA PPUADDR
 	STY PPUADDR
-	LDX #$02
+	LDX #$30
 	STX PPUDATA
   INY
   CPY #$18
@@ -127,7 +149,7 @@ third_row:
 	LDA #$22
 	STA PPUADDR
 	STY PPUADDR
-	LDX #$02
+	LDX #$30
 	STX PPUDATA
   INY
   CPY #$37
@@ -140,7 +162,7 @@ fourth_row:
 	LDA #$22
 	STA PPUADDR
 	STY PPUADDR
-	LDX #$02
+	LDX #$30
 	STX PPUDATA
   INY
   CPY #$55
@@ -153,7 +175,7 @@ fifth_row:
 	LDA #$22
 	STA PPUADDR
 	STY PPUADDR
-	LDX #$02
+	LDX #$30
 	STX PPUDATA
   INY
   CPY #$73
@@ -200,6 +222,7 @@ move_right_x:
   INC player_x
   INC player_x  ; Increase the increment to move faster in X
 
+
   ; Update player_y
 ;   LDA player_y
 ;   CMP #$e0
@@ -244,7 +267,21 @@ exit_subroutine_xy:
   TYA
   PHA
 
-  ; write player ship tile numbers
+ ; Determine which frame to use based on player_animation counter
+  LDA player_animation
+  CMP playerFrames1
+  BEQ use_frame_1
+  CMP playerFrames2
+  BEQ use_frame_2
+  CMP playerFrames3
+  BEQ use_frame_3
+  CMP playerFrames4
+  BEQ use_frame_4
+
+  JMP use_frame_1  ; Default to frame 1
+
+use_frame_1:
+  ; entity stand
   LDA #$00
   STA $0201
   LDA #$01
@@ -253,7 +290,28 @@ exit_subroutine_xy:
   STA $0209
   LDA #$11
   STA $020d
+  JMP done_drawing_player
 
+use_frame_2:
+  ; entity run 
+  LDA #$02
+  STA $0201
+  LDA #$03
+  STA $0205
+  LDA #$12
+  STA $0209
+  LDA #$13
+  STA $020d
+  JMP done_drawing_player
+
+use_frame_3:
+  ; Add code for frame 3 (if different from frame 1)
+
+use_frame_4:
+  ; Add code for frame 4 (if different from frame 1)
+  ; write player ship tile numbers
+
+done_drawing_player:
   ; write player ship tile attributes
   ; use palette 0
   LDA #$00
@@ -261,6 +319,23 @@ exit_subroutine_xy:
   STA $0206
   STA $020a
   STA $020e
+
+  ; LDA #$02
+  ; STA $0201
+  ; LDA #$03
+  ; STA $0205
+  ; LDA #$12
+  ; STA $0209
+  ; LDA #$13
+  ; STA $020d
+
+  ; ; write player ship tile attributes
+  ; ; use palette 0
+  ; LDA #$00
+  ; STA $0202
+  ; STA $0206
+  ; STA $020a
+  ; STA $020e
 
   ; store tile locations
   ; top left tile:
@@ -319,6 +394,11 @@ palettes:
 .byte $3c, $19, $09, $29
 .byte $3c, $19, $09, $29
 .byte $3c, $19, $09, $29
+
+playerFrames1 = $00  ; Player's counter resets
+playerFrames2 = $01
+playerFrames3 = $02
+playerFrames4 = $03
 
 .segment "CHR"
 .incbin "initialIdeas.chr"
