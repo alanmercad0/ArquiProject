@@ -10,6 +10,7 @@ velocity_y: .res 1
 ppuctrl_settings: .res 1
 pad1: .res 1
 tmp: .res 1
+player_state: .res 1
 .exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp
 
 .segment "CODE"
@@ -28,6 +29,7 @@ tmp: .res 1
 
 
   ; update tiles *after* DMA transfer
+  
   JSR read_controller1
 	JSR update_player
   JSR draw_player
@@ -42,12 +44,17 @@ tmp: .res 1
 
 .export main
 .proc main
+
+  LDA #%11111111
+  STA player_state
+
   ; write a palette
   LDX PPUSTATUS
   LDX #$3f
   STX PPUADDR
   LDX #$00
   STX PPUADDR
+
 load_palettes:
   LDA palettes,X
   STA PPUDATA
@@ -57,22 +64,23 @@ load_palettes:
 
   JSR draw_platform
 
-	; finally, attribute table
-	LDA PPUSTATUS
-	LDA #$23
-	STA PPUADDR
-	LDA #$a2
-	STA PPUADDR
-	LDA #%11000000
-	STA PPUDATA
 
-	LDA PPUSTATUS
-	LDA #$23
-	STA PPUADDR
-	LDA #$e0
-	STA PPUADDR
-	LDA #%00001100
-	STA PPUDATA
+	; finally, attribute table
+	; LDA PPUSTATUS
+	; LDA #$23
+	; STA PPUADDR
+	; LDA #$a2
+	; STA PPUADDR
+	; LDA #%11000000
+	; STA PPUDATA
+
+	; LDA PPUSTATUS
+	; LDA #$23
+	; STA PPUADDR
+	; LDA #$e0
+	; STA PPUADDR
+	; LDA #%00001100
+	; STA PPUDATA
 
 vblankwait:       ; wait for another vblank before continuing
   BIT PPUSTATUS
@@ -105,71 +113,102 @@ forever:
   DEY
   STY player_y
 
-
-
 collides:
   LDY player_y
   INY
   STY player_y
 
-  ; INC player_y
-  ; INC player_y
-
-  ; DEC player_y ; Does collide
-  ; DEC player_y
-
-
-; continue:
   LDA pad1        ; Load button presses
   AND #BTN_LEFT   ; Filter out all but Left
   BEQ check_right ; If result is zero, left not pressed
   DEC player_x    ; If the branch is not taken, move player left
 
-  LDA #$01
-  STA FACING
+  LDA player_state
+  AND #%11111110
+  STA player_state
+
 
 check_right:
   LDA pad1
   AND #BTN_RIGHT
-  BEQ check_up
+  BEQ check_a
   INC player_x
 
-  LDA #$00
-  STA FACING
+  LDA player_state
+  AND #%00000001
+  BEQ not_1
+  STA player_state
+  JMP check_a
 
-check_up:
+not_1:
+  LDX player_state
+  INX
+  STX player_state
+
+check_a:
   LDA pad1
-  AND #BTN_UP
-  BEQ check_down
+  AND #BTN_A
+  BEQ done_checking
 
   LDX player_x
   LDY player_y
   JSR CheckCollide
-  BEQ check_down
+  BEQ done_checking
 
-  LDX #$10
+  LDX #$20
+  
 jump:
+  JSR draw_player
   LDY player_y
   DEY
-  DEY
   STY player_y
+  JSR draw_player
 
   DEX
   CPX #$00
-  BEQ check_down
+  BEQ done_checking
 
   JMP jump
 
+; check_down:
+;   LDA pad1
+;   AND #BTN_DOWN
+;   BEQ done_checking
 
-check_down:
-  LDA pad1
-  AND #BTN_DOWN
-  BEQ done_checking
+;   LDY player_y
+;   INY
+;   INY
+;   STY player_y
 
-  LDY player_y
-  INY
-  INY
-  STY player_y
+; check_a: ; J key
+;   LDA pad1
+;   AND #BTN_A
+;   BEQ check_b
+;   LDX player_x
+;   LDY player_y
+;   INX
+;   ; INY
+;   STX player_x
+;   STY player_y
+
+;   LDA #$01
+;   STA FACING
+
+; check_b: ; K key
+;   LDA pad1
+;   AND #BTN_B
+;   BEQ done_checking
+
+;   LDX player_x
+;   LDY player_y
+;   DEX
+;   DEY
+;   DEY
+;   STX player_x
+;   STY player_y
+
+;   LDA #$00
+;   STA FACING
 
 done_checking:
 
@@ -231,24 +270,15 @@ done_checking:
   TYA
   PHA
 
-  ; Check which direction player is facing
-  LDA FACING
-  CMP #%00000001
+  LDX player_state
+  TXA
+  AND #%00000010
+  BNE dont_draw
+
+  ; Check which direction player is facing 0 = left 1 = right
+  TXA
+  AND #%00000001
   BEQ go_left
-  JMP go_right
-
-
-go_left:
-  LDA #$01
-  STA $0201
-  LDA #$00
-  STA $0205
-  LDA #$11
-  STA $0209
-  LDA #$10
-  STA $020d
-  LDA #$40
-  JMP continue
 
 go_right:
   LDA pad1
@@ -262,6 +292,31 @@ go_right:
   LDA #$11
   STA $020d
   LDA #$00
+  JMP continue
+
+go_left:
+  LDA #$01
+  STA $0201
+  LDA #$00
+  STA $0205
+  LDA #$11
+  STA $0209
+  LDA #$10
+  STA $020d
+  LDA #$40
+  JMP continue
+
+dont_draw:
+  LDA #$20
+  STA $0201
+  LDA #$20
+  STA $0205
+  LDA #$20
+  STA $0209
+  LDA #$20
+  STA $020d
+  LDA #$20
+
 
   ; write player ship tile numbers
 
@@ -363,7 +418,7 @@ CollisionMap:
   .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
-  .byte %11111111, %11111111, %11111111, %11111111
+  .byte %10000000, %00000000, %00000000, %00000001
 
 BitMask:
   .byte %10000000
