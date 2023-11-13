@@ -11,7 +11,8 @@ ppuctrl_settings: .res 1
 pad1: .res 1
 tmp: .res 1
 player_state: .res 1
-.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp
+player_animation: .res 1  ; Added player_animation variable
+.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp, player_animation
 
 .segment "CODE"
 .proc irq_handler
@@ -91,6 +92,24 @@ vblankwait:       ; wait for another vblank before continuing
   STA PPUCTRL
   LDA #%00011110  ; turn on screen
   STA PPUMASK
+
+;   ; Increment player_animation counter to switch frames
+;   LDA player_animation
+;   CLC
+;   ADC #$01
+;   STA player_animation
+
+;   ; Check if player_animation exceeds the maximum frame value
+;   LDA player_animation
+;   CMP #$04  ; Adjust the value based on your maximum frame value (here, $04 is one more than the highest frame value)
+;   BCC not_at_max_value  ; Branch if not at max value
+
+;   ; Reset player_animation to the starting frame
+;   LDA #$00  ; Set it to the value of the first frame
+;   STA player_animation
+
+; not_at_max_value:
+; ; Continue with the rest of your code
 
 forever:
   JMP forever
@@ -270,57 +289,72 @@ done_checking:
   TYA
   PHA
 
-  LDX player_state
-  TXA
-  AND #%00000010
-  BNE dont_draw
+ ; Determine which frame to use based on player_animation counter
+  ; LDA player_animation
+  LDA #$03
 
-  ; Check which direction player is facing 0 = left 1 = right
-  TXA
-  AND #%00000001
-  BEQ go_left
+  CMP #$00 
+  BEQ use_frame_1
+  CMP #$01
+  BEQ use_frame_2
+  CMP #$02
+  BEQ use_frame_3
+  CMP #$03
+  BEQ use_frame_4
 
-go_right:
-  LDA pad1
-  AND #BTN_RIGHT
-  LDA #$00
+  JMP use_frame_1  ; Default to frame 1
+
+use_frame_1:
+  ; entity stand
+  LDA #$02
   STA $0201
-  LDA #$01
+  LDA #$03
   STA $0205
-  LDA #$10
+  LDA #$12
   STA $0209
-  LDA #$11
+  LDA #$13
   STA $020d
-  LDA #$00
-  JMP continue
+  JMP done_drawing_player
 
-go_left:
-  LDA #$01
+use_frame_2:
+  ; entity run 
+  LDA #$04
   STA $0201
-  LDA #$00
+  LDA #$05
   STA $0205
-  LDA #$11
+  LDA #$14
   STA $0209
-  LDA #$10
+  LDA #$15
   STA $020d
-  LDA #$40
-  JMP continue
+  JMP done_drawing_player
 
-dont_draw:
-  LDA #$20
+use_frame_3:
+  ; Add code for frame 3 (if different from frame 1)
+  ; entity run 
+  LDA #$06
   STA $0201
-  LDA #$20
+  LDA #$07
   STA $0205
-  LDA #$20
+  LDA #$16
   STA $0209
-  LDA #$20
+  LDA #$17
   STA $020d
-  LDA #$20
+  JMP done_drawing_player
 
-
+use_frame_4:
+  ; Add code for frame 4 (if different from frame 1)
   ; write player ship tile numbers
+  LDA #$08
+  STA $0201
+  LDA #$09
+  STA $0205
+  LDA #$18
+  STA $0209
+  LDA #$19
+  STA $020d
+  JMP done_drawing_player
 
-continue:
+done_drawing_player:
   ; write player ship tile attributes
   ; use palette 0
   STA $0202
