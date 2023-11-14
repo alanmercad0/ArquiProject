@@ -13,6 +13,8 @@ tmp: .res 1
 player_state: .res 1
 player_animation: .res 1  ; Added player_animation variable
 player_health: .res 1
+counter: .res 1
+jumping: .res 1
 .exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp, player_animation, player_health
 
 .segment "CODE"
@@ -71,24 +73,6 @@ load_palettes:
 
   JSR draw_platform
 
-
-	; finally, attribute table
-	; LDA PPUSTATUS
-	; LDA #$23
-	; STA PPUADDR
-	; LDA #$a2
-	; STA PPUADDR
-	; LDA #%11000000
-	; STA PPUDATA
-
-	; LDA PPUSTATUS
-	; LDA #$23
-	; STA PPUADDR
-	; LDA #$e0
-	; STA PPUADDR
-	; LDA #%00001100
-	; STA PPUDATA
-
 vblankwait:       ; wait for another vblank before continuing
   BIT PPUSTATUS
   BPL vblankwait
@@ -98,24 +82,6 @@ vblankwait:       ; wait for another vblank before continuing
   STA PPUCTRL
   LDA #%00011110  ; turn on screen
   STA PPUMASK
-
-;   ; Increment player_animation counter to switch frames
-;   LDA player_animation
-;   CLC
-;   ADC #$01
-;   STA player_animation
-
-;   ; Check if player_animation exceeds the maximum frame value
-;   LDA player_animation
-;   CMP #$04  ; Adjust the value based on your maximum frame value (here, $04 is one more than the highest frame value)
-;   BCC not_at_max_value  ; Branch if not at max value
-
-;   ; Reset player_animation to the starting frame
-;   LDA #$00  ; Set it to the value of the first frame
-;   STA player_animation
-
-; not_at_max_value:
-; ; Continue with the rest of your code
 
 forever:
   JMP forever
@@ -143,81 +109,84 @@ forever:
 
 collides:
   INC player_y
+  ; LDA player_y
+  CMP #$F0
+  BCS check_left
 
+
+check_left:
   LDA pad1        ; Load button presses
   AND #BTN_LEFT   ; Filter out all but Left
   BEQ check_right ; If result is zero, left not pressed
+
+  LDA player_x
+  CMP #$05
+  BCC done_checking
+
+  LDA #$01
+  STA player_state
+
   DEC player_x    ; If the branch is not taken, move player left
 
-  LDA player_state
-  AND #%11111110
-  STA player_state
 
 check_right:
   LDA pad1
   AND #BTN_RIGHT
-  BEQ check_a
+  BEQ check_up
+
+  LDA #$00
+  STA player_state
+
+  LDA player_x
+  CMP #$F5
+  BCS done_checking
+
   INC player_x
 
-  LDA player_state
-  AND #%00000001
-  BEQ not_1
-  STA player_state
-  JMP check_a
+check_up:
+  LDA pad1
+  AND #BTN_UP
+  BEQ check_down
 
-not_1:
-  LDX player_state
-  INX
-  STX player_state
+  DEC player_y
+  DEC player_y
+
+check_down:
+  LDA pad1
+  AND #BTN_DOWN
+  BEQ check_jumping
+
+  INC player_y
+
+check_jumping:
+  LDA jumping
+  CMP #$00
+  BEQ check_a
+
+  LDA #$01
+  CMP #jumping
+  BCC check_a
+
+  DEC player_y
+  DEC player_y
+  DEC player_y
+  DEC jumping
+  JMP check_b
 
 check_a:
   LDA pad1
   AND #BTN_A
   BEQ check_b
 
-  LDX player_x
-  LDY player_y
-  JSR CheckCollide
-  BEQ check_b
-
-  LDX #$20
-  
-jump:
-  ; JSR draw_player
-  DEC player_y
-  ; JSR draw_player
-
-  DEX
-  CPX #$00
-  BEQ done_checking
-
-  JMP jump
-
-; check_down:
-;   LDA pad1
-;   AND #BTN_DOWN
-;   BEQ done_checking
-
-;   LDY player_y
-;   INY
-;   INY
-;   STY player_y
+  LDA #$10
+  STA jumping
 
 check_b: ; K key
   LDA pad1
   AND #BTN_B
   BEQ done_checking
   
-
-  LDA player_health
-  CMP #$01
-  BPL is_0
-  LDA #$64
-  STA player_health
-
-is_0:
-  LDA #$00
-  STA player_health
+  JSR dead
 
 done_checking:
 
@@ -278,14 +247,59 @@ done_checking:
   TYA
   PHA
 
-  LDA #$FF
+  LDA #$23
   STA $0201
-  LDA #$FF
+  LDA #$24
   STA $0205
-  LDA #$FF
+  LDA #$33
   STA $0209
-  LDA #$FF
+  LDA #$34
   STA $020d
+
+  LDA #$41
+  STA $0202
+
+  ; LDA #$01
+  STA $0206
+
+  ; LDA #$02
+  STA $020a
+
+  ; LDA #$03
+  STA $020e
+
+  ; store tile locations
+  ; top left tile:
+  LDA player_y
+  STA $0200
+  LDA player_x
+  STA $0203
+
+  ; top right tile (x + 8):
+  LDA player_y
+  STA $0204
+  LDA player_x
+  CLC
+  ADC #$08
+  STA $0207
+
+  ; bottom left tile (y + 8):
+  LDA player_y
+  CLC
+  ADC #$08
+  STA $0208
+  LDA player_x
+  STA $020b
+
+  ; bottom right tile (x + 8, y + 8)
+  LDA player_y
+  CLC
+  ADC #$08
+  STA $020c
+  LDA player_x
+  CLC
+  ADC #$08
+  STA $020f
 
   PLA
   TAY
@@ -295,6 +309,8 @@ done_checking:
   PLP
   RTS
 .endproc
+
+
 
 .proc draw_player
   ; save registers
@@ -306,35 +322,41 @@ done_checking:
   PHA
 
   
-  LDA player_health
-  CMP #$00
-  BNE continue
-  JSR dead
-  JMP done
+  ; LDA player_health
+  ; CMP #$00
+  ; BNE continue
+  ; JSR dead
+  ; JMP done
+
+  LDA player_state
+  CMP #$01
+  BCS go_left
+
 
 continue:
 
- ; Determine which frame to use based on player_animation counter
-  LDX player_animation
+;  ; Determine which frame to use based on player_animation counter
+;   LDX player_animation
 
-  CPX #$00 
-  BEQ use_frame_1
+;   CPX #$00 
+;   BEQ use_frame_1
 
-  CPX #$0A
-  BEQ use_frame_2
+;   CPX #$0A
+;   BEQ use_frame_2
 
-  CPX #$14
-  BEQ use_frame_3
+;   CPX #$14
+;   BEQ use_frame_3
 
-  CPX #$1E
-  BEQ use_frame_4
+;   CPX #$1E
+;   BEQ use_frame_4
 
-  ; STA $0203
-  ; STA $0207
-  ; STA $020b
-  ; STA $020f
 
-use_frame_1:
+;   ; STA $0202
+;   ; STA $0206
+;   ; STA $020a
+;   ; STA $020e
+
+; use_frame_1:
   ; entity stand
   LDA #$02
   STA $0201
@@ -344,63 +366,98 @@ use_frame_1:
   STA $0209
   LDA #$13
   STA $020d
+  LDA #$00
+  JMP go_here
 
-  INC player_animation
-  JMP done_drawing_player
-
-use_frame_2:
-  ; entity run 
-  LDA #$04
+go_left:
+  LDA #$03
   STA $0201
-  LDA #$05
+  LDA #$02
   STA $0205
-  LDA #$14
+  LDA #$13
   STA $0209
-  LDA #$15
+  LDA #$12
   STA $020d
+  LDA #$40
 
-  INC player_animation
-  JMP done_drawing_player
 
-use_frame_3:
-  ; Add code for frame 3 (if different from frame 1)
-  ; entity run 
-  LDA #$06
-  STA $0201
-  LDA #$07
-  STA $0205
-  LDA #$16
-  STA $0209
-  LDA #$17
-  STA $020d
+  
+;   INC counter
+;   INC counter
+;   INC counter
+;   LDA counter
+;   AND #$10
+;   BEQ even
+;   LDA #$00
+;   JMP go_here
 
-  INC player_animation
-  JMP done_drawing_player
+; even:
+;   LDA #$03
 
-use_frame_4:
-  ; Add code for frame 4 (if different from frame 1)
-  ; write player ship tile numbers
-  LDA #$08
-  STA $0201
-  LDA #$09
-  STA $0205
-  LDA #$18
-  STA $0209
-  LDA #$19
-  STA $020d
+;   INC player_animation
+;   JMP done_drawing_player
 
-  LDX #$00 
-  STX player_animation
+; use_frame_2:
+;   ; entity run 
+;   LDA #$04
+;   STA $0201
+;   LDA #$05
+;   STA $0205
+;   LDA #$14
+;   STA $0209
+;   LDA #$15
+;   STA $020d
 
-  JMP done_drawing_player
+;   INC player_animation
+;   JMP done_drawing_player
 
-done_drawing_player:
-  ; write player ship tile attributes
-  ; use palette 0
-  ; STA $0202
-  ; STA $0206
-  ; STA $020a
-  ; STA $020e
+; use_frame_3:
+;   ; Add code for frame 3 (if different from frame 1)
+;   ; entity run 
+;   LDA #$06
+;   STA $0201
+;   LDA #$07
+;   STA $0205
+;   LDA #$16
+;   STA $0209
+;   LDA #$17
+;   STA $020d
+
+;   INC player_animation
+;   JMP done_drawing_player
+
+; use_frame_4:
+;   ; Add code for frame 4 (if different from frame 1)
+;   ; write player ship tile numbers
+;   LDA #$08
+;   STA $0201
+;   LDA #$09
+;   STA $0205
+;   LDA #$18
+;   STA $0209
+;   LDA #$19
+;   STA $020d
+
+;   LDX #$00 
+;   STX player_animation
+
+;   JMP done_drawing_player
+
+; done_drawing_player:
+;   ; write player ship tile attributes
+;   ; use palette 0
+  ; LDA #$00
+go_here:
+  STA $0202
+
+  ; LDA #$01
+  STA $0206
+
+  ; LDA #$02
+  STA $020a
+
+  ; LDA #$03
+  STA $020e
 
   ; store tile locations
   ; top left tile:
@@ -451,15 +508,15 @@ done:
 
 .segment "RODATA"
 palettes:
-.byte $3c, $03, $14, $23 ; Background
-.byte $3c, $27, $37, $0f
-.byte $3c, $31, $30, $0f
+.byte $3c, $03, $14, $23 ; Blocks
+.byte $3c, $27, $37, $0f ; Sun
+.byte $3c, $31, $30, $0f ; Clouds
 .byte $3c, $37, $37, $37
 
-.byte $3c, $15, $0f, $37 ; Sprite
-.byte $3c, $15, $0f, $37
-.byte $3c, $19, $09, $29
-.byte $3c, $19, $09, $29
+.byte $3c, $0f, $04, $37 ; Character
+.byte $3c, $01, $01, $01
+.byte $3c, $2D, $00, $3D ; Tombstone
+.byte $3c, $06, $06, $06 ; All red
 
 CollisionMap:
   .byte %11111111, %11111111, %11111111, %11111111
@@ -507,4 +564,4 @@ BitMask:
 
 
 .segment "CHR"
-.incbin "initialIdeas.chr"
+.incbin "addedTombstone.chr"
