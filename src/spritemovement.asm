@@ -12,6 +12,7 @@ pad1: .res 1
 tmp: .res 1
 player_state: .res 1
 player_animation: .res 1  ; Added player_animation variable
+frame_counter: .res 1
 player_health: .res 1
 counter: .res 1
 jumping: .res 1
@@ -82,6 +83,7 @@ vblankwait:       ; wait for another vblank before continuing
   STA PPUCTRL
   LDA #%00011110  ; turn on screen
   STA PPUMASK
+
 
 forever:
   JMP forever
@@ -335,28 +337,46 @@ done_checking:
 
 continue:
 
-;  ; Determine which frame to use based on player_animation counter
-;   LDX player_animation
+   ; Determine which frame to use based on player_animation counter
+  LDA #$3f
+  CMP frame_counter
+  BEQ update_animation ;if frame_counter = 0, then update animation
+   
+  INC frame_counter
+  JMP evaluate_animation
+
+update_animation:
+  LDA #$05
+  CMP player_animation
+  BEQ reset_animation 
+  INC player_animation
+
+
+  LDA #$00
+  STA frame_counter
+  JMP evaluate_animation
+
+reset_animation:
+  LDX #$00 
+  STX player_animation
+
+evaluate_animation:
+
+  LDX player_animation
 
 ;   CPX #$00 
 ;   BEQ use_frame_1
 
-;   CPX #$0A
-;   BEQ use_frame_2
+  CPX #$01 ;60s
+  BEQ use_frame_2
 
-;   CPX #$14
-;   BEQ use_frame_3
+  CPX #$02 ;120s
+  BEQ use_frame_3
 
-;   CPX #$1E
-;   BEQ use_frame_4
+  CPX #$03 ;180s
+  BEQ use_frame_4
 
-
-;   ; STA $0202
-;   ; STA $0206
-;   ; STA $020a
-;   ; STA $020e
-
-; use_frame_1:
+use_frame_1:
   ; entity stand
   LDA #$02
   STA $0201
@@ -366,11 +386,11 @@ continue:
   STA $0209
   LDA #$13
   STA $020d
-  LDA #$00
-  JMP go_here
 
-go_left:
-  LDA #$03
+  JMP done_drawing_player
+
+use_frame_2:
+  LDA #$04
   STA $0201
   LDA #$02
   STA $0205
@@ -378,85 +398,44 @@ go_left:
   STA $0209
   LDA #$12
   STA $020d
-  LDA #$40
 
+  JMP done_drawing_player
 
+use_frame_3:
+  LDA #$06
+  STA $0201
+  LDA #$07
+  STA $0205
+  LDA #$16
+  STA $0209
+  LDA #$17
+  STA $020d
+
+  JMP done_drawing_player
+
+use_frame_4:
+  ; entity stand
+  LDA #$08
+  STA $0201
+  LDA #$09
+  STA $0205
+  LDA #$18
+  STA $0209
+  LDA #$19
+  STA $020d
   
-;   INC counter
-;   INC counter
-;   INC counter
-;   LDA counter
-;   AND #$10
-;   BEQ even
-;   LDA #$00
-;   JMP go_here
-
-; even:
-;   LDA #$03
-
-;   INC player_animation
-;   JMP done_drawing_player
-
-; use_frame_2:
-;   ; entity run 
-;   LDA #$04
-;   STA $0201
-;   LDA #$05
-;   STA $0205
-;   LDA #$14
-;   STA $0209
-;   LDA #$15
-;   STA $020d
-
-;   INC player_animation
-;   JMP done_drawing_player
-
-; use_frame_3:
-;   ; Add code for frame 3 (if different from frame 1)
-;   ; entity run 
-;   LDA #$06
-;   STA $0201
-;   LDA #$07
-;   STA $0205
-;   LDA #$16
-;   STA $0209
-;   LDA #$17
-;   STA $020d
-
-;   INC player_animation
-;   JMP done_drawing_player
-
-; use_frame_4:
-;   ; Add code for frame 4 (if different from frame 1)
-;   ; write player ship tile numbers
-;   LDA #$08
-;   STA $0201
-;   LDA #$09
-;   STA $0205
-;   LDA #$18
-;   STA $0209
-;   LDA #$19
-;   STA $020d
-
-;   LDX #$00 
-;   STX player_animation
+  ; LDX #$00 
+  ; STX player_animation
 
 ;   JMP done_drawing_player
 
-; done_drawing_player:
-;   ; write player ship tile attributes
-;   ; use palette 0
-  ; LDA #$00
-go_here:
+
+done_drawing_player:
+  ; write player ship tile attributes
+  ; use palette 0
   STA $0202
-
-  ; LDA #$01
   STA $0206
-
-  ; LDA #$02
   STA $020a
-
-  ; LDA #$03
   STA $020e
 
   ; store tile locations
