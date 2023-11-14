@@ -330,15 +330,13 @@ done_checking:
   ; JSR dead
   ; JMP done
 
-  LDA player_state
-  CMP #$01
-  BCS go_left
+  ; LDA player_state
+  ; CMP #$01
+  ; BCS go_left
 
-
-continue:
 
    ; Determine which frame to use based on player_animation counter
-  LDA #$3f
+  LDA #$20
   CMP frame_counter
   BEQ update_animation ;if frame_counter = 0, then update animation
    
@@ -361,78 +359,16 @@ reset_animation:
   STX player_animation
 
 evaluate_animation:
+  LDA player_state
+  AND #$01
+  BNE go_left
+  JSR player_right
+  JMP continue
 
-  LDX player_animation
+go_left:
+  JSR player_left
 
-;   CPX #$00 
-;   BEQ use_frame_1
-
-  CPX #$01 ;60s
-  BEQ use_frame_2
-
-  CPX #$02 ;120s
-  BEQ use_frame_3
-
-  CPX #$03 ;180s
-  BEQ use_frame_4
-
-use_frame_1:
-  ; entity stand
-  LDA #$02
-  STA $0201
-  LDA #$03
-  STA $0205
-  LDA #$12
-  STA $0209
-  LDA #$13
-  STA $020d
-
-  JMP done_drawing_player
-
-use_frame_2:
-  LDA #$04
-  STA $0201
-  LDA #$02
-  STA $0205
-  LDA #$13
-  STA $0209
-  LDA #$12
-  STA $020d
-
-  JMP done_drawing_player
-
-use_frame_3:
-  LDA #$06
-  STA $0201
-  LDA #$07
-  STA $0205
-  LDA #$16
-  STA $0209
-  LDA #$17
-  STA $020d
-
-  JMP done_drawing_player
-
-use_frame_4:
-  ; entity stand
-  LDA #$08
-  STA $0201
-  LDA #$09
-  STA $0205
-  LDA #$18
-  STA $0209
-  LDA #$19
-  STA $020d
-  
-  ; LDX #$00 
-  ; STX player_animation
-
-;   JMP done_drawing_player
-
-
-done_drawing_player:
-  ; write player ship tile attributes
-  ; use palette 0
+continue:
   STA $0202
   STA $0206
   STA $020a
@@ -479,6 +415,158 @@ done:
   TAX
   PLA
   PLP
+  RTS
+.endproc
+
+.proc player_right
+  LDX player_animation
+
+;   CPX #$00 
+;   BEQ use_frame_1
+
+  CPX #$01 ;60s
+  BEQ use_frame_2
+
+  CPX #$02 ;120s
+  BEQ use_frame_3
+
+  CPX #$03 ;180s
+  BEQ use_frame_4
+
+use_frame_1:
+  ; entity stand
+  LDA #$02
+  STA $0201
+  LDA #$03
+  STA $0205
+  LDA #$12
+  STA $0209
+  LDA #$13
+  STA $020d
+
+  JMP done_drawing_player
+
+use_frame_2:
+  LDA #$04
+  STA $0201
+  LDA #$05
+  STA $0205
+  LDA #$14
+  STA $0209
+  LDA #$15
+  STA $020d
+
+  JMP done_drawing_player
+
+use_frame_3:
+  LDA #$06
+  STA $0201
+  LDA #$07
+  STA $0205
+  LDA #$16
+  STA $0209
+  LDA #$17
+  STA $020d
+
+  JMP done_drawing_player
+
+use_frame_4:
+  ; entity stand
+  LDA #$08
+  STA $0201
+  LDA #$09
+  STA $0205
+  LDA #$18
+  STA $0209
+  LDA #$19
+  STA $020d
+  
+  ; LDX #$00 
+  ; STX player_animation
+
+;   JMP done_drawing_player
+
+
+done_drawing_player:
+  ; write player ship tile attributes
+  ; use palette 0
+  LDA #$00
+  RTS
+.endproc
+
+.proc player_left
+  LDX player_animation
+
+;   CPX #$00 
+;   BEQ use_frame_1
+
+  CPX #$01 ;60s
+  BEQ use_frame_2
+
+  CPX #$02 ;120s
+  BEQ use_frame_3
+
+  CPX #$03 ;180s
+  BEQ use_frame_4
+
+use_frame_1:
+  ; entity stand
+  LDA #$03
+  STA $0201
+  LDA #$02
+  STA $0205
+  LDA #$13
+  STA $0209
+  LDA #$12
+  STA $020d
+
+  JMP done_drawing_player
+
+use_frame_2:
+  LDA #$05
+  STA $0201
+  LDA #$04
+  STA $0205
+  LDA #$15
+  STA $0209
+  LDA #$14
+  STA $020d
+
+  JMP done_drawing_player
+
+use_frame_3:
+  LDA #$07
+  STA $0201
+  LDA #$06
+  STA $0205
+  LDA #$17
+  STA $0209
+  LDA #$16
+  STA $020d
+
+  JMP done_drawing_player
+
+use_frame_4:
+  ; entity stand
+  LDA #$09
+  STA $0201
+  LDA #$08
+  STA $0205
+  LDA #$19
+  STA $0209
+  LDA #$18
+  STA $020d
+  
+  ; LDX #$00 
+  ; STX player_animation
+
+;   JMP done_drawing_player
+
+
+done_drawing_player:
+  ; write player ship tile attributes
+  ; use palette 0
+  LDA #$40
   RTS
 .endproc
 
