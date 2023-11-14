@@ -16,7 +16,8 @@ frame_counter: .res 1
 player_health: .res 1
 counter: .res 1
 jumping: .res 1
-.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp, player_animation, player_health
+is_jumping: .res 1
+.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp, player_animation, player_health, is_jumping
 
 .segment "CODE"
 .proc irq_handler
@@ -152,6 +153,9 @@ check_up:
 
   DEC player_y
   DEC player_y
+
+  ; LDA #$01
+  ; STA is_jumping
 
 check_down:
   LDA pad1
@@ -363,10 +367,18 @@ evaluate_animation:
   AND #$01
   BNE go_left
   JSR player_right
+
+  ; LDA jumping
+  ; AND #$01
+  ; BEQ go_leap
+
   JMP continue
 
 go_left:
   JSR player_left
+
+; go_leap:
+;   JSR leap
 
 continue:
   STA $0202
@@ -543,13 +555,15 @@ finish:
 ;   CPX #$00 
 ;   BEQ use_frame_1
 
+
+
   CPX #$01 
   BEQ use_frame_2
 
   CPX #$02 
   BEQ use_frame_3
 
-   CPX #$04 
+  CPX #$04 
   BEQ use_frame_4
 
   CPX #$05 
@@ -651,6 +665,19 @@ finish:
   RTS
 .endproc
 
+; .proc leap
+;   LDA #$02
+;   STA $0201
+;   LDA #$03
+;   STA $0205
+;   LDA #$12
+;   STA $0209
+;   LDA #$13
+;   STA $020d
+
+;   RTS
+; .endproc
+
 .segment "VECTORS"
 .addr nmi_handler, reset_handler, irq_handler
 
@@ -712,4 +739,4 @@ BitMask:
 
 
 .segment "CHR"
-.incbin "addedTombstone.chr"
+.incbin "addedJump.chr"
