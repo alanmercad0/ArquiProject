@@ -338,13 +338,13 @@ done_checking:
    ; Determine which frame to use based on player_animation counter
   LDA #$20
   CMP frame_counter
-  BEQ update_animation ;if frame_counter = 0, then update animation
+  BEQ update_animation 
    
   INC frame_counter
   JMP evaluate_animation
 
 update_animation:
-  LDA #$05
+  LDA #$07
   CMP player_animation
   BEQ reset_animation 
   INC player_animation
@@ -421,17 +421,24 @@ done:
 .proc player_right
   LDX player_animation
 
-;   CPX #$00 
-;   BEQ use_frame_1
 
-  CPX #$01 ;60s
-  BEQ use_frame_2
+  CPX #$01 
+  BEQ use_frame_2 ; standing
 
-  CPX #$02 ;120s
-  BEQ use_frame_3
+  CPX #$02 
+  BEQ use_frame_3 ; leaining
 
-  CPX #$03 ;180s
-  BEQ use_frame_4
+  CPX #$03 
+  BEQ use_frame_4 ; walking 
+
+  CPX #$04 
+  BEQ use_frame_4 ; attack
+
+  CPX #$05 
+  BEQ use_frame_5 ; attack with damage
+
+  CPX #$06
+  BEQ use_frame_6 ; rip
 
 use_frame_1:
   ; entity stand
@@ -443,6 +450,9 @@ use_frame_1:
   STA $0209
   LDA #$13
   STA $020d
+
+   ; use palette 0
+  ; LDA #$40
 
   JMP done_drawing_player
 
@@ -456,6 +466,9 @@ use_frame_2:
   LDA #$15
   STA $020d
 
+   ; use palette 0
+  ; LDA #$40
+
   JMP done_drawing_player
 
 use_frame_3:
@@ -468,10 +481,10 @@ use_frame_3:
   LDA #$17
   STA $020d
 
+
   JMP done_drawing_player
 
 use_frame_4:
-  ; entity stand
   LDA #$08
   STA $0201
   LDA #$09
@@ -480,17 +493,47 @@ use_frame_4:
   STA $0209
   LDA #$19
   STA $020d
+
+
+  JMP done_drawing_player
+
+use_frame_5:
+  LDA #$08
+  STA $0201
+  LDA #$09
+  STA $0205
+  LDA #$18
+  STA $0209
+  LDA #$19
+  STA $020d
+
   
-  ; LDX #$00 
-  ; STX player_animation
+  JMP done_drawing_with_damage
 
-;   JMP done_drawing_player
 
+use_frame_6:
+  ; entity rip
+  LDA #$23
+  STA $0201
+  LDA #$24
+  STA $0205
+  LDA #$33
+  STA $0209
+  LDA #$34
+  STA $020d
+
+  JMP done_drawing_player
+
+   
+done_drawing_with_damage:
+  LDA #$03
+  JMP finish
 
 done_drawing_player:
-  ; write player ship tile attributes
   ; use palette 0
   LDA #$00
+
+finish:
   RTS
 .endproc
 
@@ -500,14 +543,20 @@ done_drawing_player:
 ;   CPX #$00 
 ;   BEQ use_frame_1
 
-  CPX #$01 ;60s
+  CPX #$01 
   BEQ use_frame_2
 
-  CPX #$02 ;120s
+  CPX #$02 
   BEQ use_frame_3
 
-  CPX #$03 ;180s
+   CPX #$04 
   BEQ use_frame_4
+
+  CPX #$05 
+  BEQ use_frame_5
+
+  CPX #$06
+  BEQ use_frame_6
 
 use_frame_1:
   ; entity stand
@@ -519,6 +568,9 @@ use_frame_1:
   STA $0209
   LDA #$12
   STA $020d
+
+  ; using pallete 0
+  ; LDA #$00
 
   JMP done_drawing_player
 
@@ -532,6 +584,7 @@ use_frame_2:
   LDA #$14
   STA $020d
 
+
   JMP done_drawing_player
 
 use_frame_3:
@@ -543,6 +596,7 @@ use_frame_3:
   STA $0209
   LDA #$16
   STA $020d
+
 
   JMP done_drawing_player
 
@@ -556,17 +610,44 @@ use_frame_4:
   STA $0209
   LDA #$18
   STA $020d
-  
-  ; LDX #$00 
-  ; STX player_animation
 
-;   JMP done_drawing_player
+  JMP done_drawing_player
 
+use_frame_5:
+  LDA #$09
+  STA $0201
+  LDA #$08
+  STA $0205
+  LDA #$19
+  STA $0209
+  LDA #$18
+  STA $020d
+
+
+  JMP done_drawing_with_damage
+
+use_frame_6:
+  ; entity rip
+  LDA #$24
+  STA $0201
+  LDA #$23
+  STA $0205
+  LDA #$34
+  STA $0209
+  LDA #$33
+  STA $020d
+
+  JMP done_drawing_player
+
+done_drawing_with_damage:
+  LDA #$43
+  JMP finish
 
 done_drawing_player:
-  ; write player ship tile attributes
   ; use palette 0
   LDA #$40
+  
+finish:
   RTS
 .endproc
 
@@ -583,7 +664,7 @@ palettes:
 .byte $3c, $0f, $04, $37 ; Character
 .byte $3c, $01, $01, $01
 .byte $3c, $2D, $00, $3D ; Tombstone
-.byte $3c, $06, $06, $06 ; All red
+.byte $3c, $06, $07, $08 ; All red
 
 CollisionMap:
   .byte %11111111, %11111111, %11111111, %11111111
