@@ -162,6 +162,8 @@ check_down:
   AND #BTN_DOWN
   BEQ check_jumping
 
+  LDA #$00
+  STA is_jumping
   INC player_y
 
 check_jumping:
@@ -172,6 +174,9 @@ check_jumping:
   LDA #$01
   CMP #jumping
   BCC check_a
+
+  LDA #$01
+  STA is_jumping
 
   DEC player_y
   DEC player_y
@@ -377,9 +382,6 @@ evaluate_animation:
 go_left:
   JSR player_left
 
-; go_leap:
-;   JSR leap
-
 continue:
   STA $0202
   STA $0206
@@ -431,8 +433,33 @@ done:
 .endproc
 
 .proc player_right
-  LDX player_animation
+  
 
+
+  LDX is_jumping
+  CPX #$01
+  BEQ use_jump
+  JMP cycle
+
+use_jump:
+  LDA #$26
+  STA $0201
+  LDA #$25
+  STA $0205
+  LDA #$36
+  STA $0209
+  LDA #$35
+  STA $020d
+
+  ; LDX is_jumping
+  ; CPX #$01
+  ; BEQ use_jump
+  JMP done_drawing_player
+
+
+cycle:
+
+  LDX player_animation
 
   CPX #$01 
   BEQ use_frame_2 ; standing
@@ -451,6 +478,9 @@ done:
 
   CPX #$06
   BEQ use_frame_6 ; rip
+
+
+
 
 use_frame_1:
   ; entity stand
@@ -551,11 +581,6 @@ finish:
 
 .proc player_left
   LDX player_animation
-
-;   CPX #$00 
-;   BEQ use_frame_1
-
-
 
   CPX #$01 
   BEQ use_frame_2
