@@ -57,7 +57,6 @@ jumping: .res 1
   LDA #%11111111
   STA player_state
 
-
   ; write a palette
   LDX PPUSTATUS
   LDX #$3f
@@ -98,7 +97,8 @@ forever:
   TYA
   PHA 
 
-
+  LDA #$00
+  STA player_state
 
   LDX player_x
   LDY player_y
@@ -136,7 +136,7 @@ check_right:
   AND #BTN_RIGHT
   BEQ check_up
 
-  LDA #$00
+  LDA #$02
   STA player_state
 
   LDA player_x
@@ -161,14 +161,9 @@ check_down:
   INC player_y
 
 check_jumping:
-  LDA jumping
-  CMP #$00
-  BEQ check_a
-
-  LDA #$01
-  CMP #jumping
-  BCC check_a
-
+  LDX jumping
+  CPX #$00
+  BEQ check_a ; branches jumping is 0 since negative is cleared
   DEC player_y
   DEC player_y
   DEC player_y
@@ -180,7 +175,11 @@ check_a:
   AND #BTN_A
   BEQ check_b
 
-  LDA #$10
+  LDX player_x
+  LDY player_y
+  JSR CheckCollide
+  BEQ check_b
+  LDA #$0E
   STA jumping
 
 check_b: ; K key
@@ -188,7 +187,7 @@ check_b: ; K key
   AND #BTN_B
   BEQ done_checking
   
-  JSR dead
+  ; JSR dead
 
 done_checking:
 
@@ -241,79 +240,6 @@ done_checking:
   RTS
 .endproc
 
-.proc dead
-  PHP
-  PHA
-  TXA
-  PHA
-  TYA
-  PHA
-
-  LDA #$23
-  STA $0201
-  LDA #$24
-  STA $0205
-  LDA #$33
-  STA $0209
-  LDA #$34
-  STA $020d
-
-  LDA #$41
-  STA $0202
-
-  ; LDA #$01
-  STA $0206
-
-  ; LDA #$02
-  STA $020a
-
-  ; LDA #$03
-  STA $020e
-
-  ; store tile locations
-  ; top left tile:
-  LDA player_y
-  STA $0200
-  LDA player_x
-  STA $0203
-
-  ; top right tile (x + 8):
-  LDA player_y
-  STA $0204
-  LDA player_x
-  CLC
-  ADC #$08
-  STA $0207
-
-  ; bottom left tile (y + 8):
-  LDA player_y
-  CLC
-  ADC #$08
-  STA $0208
-  LDA player_x
-  STA $020b
-
-  ; bottom right tile (x + 8, y + 8)
-  LDA player_y
-  CLC
-  ADC #$08
-  STA $020c
-  LDA player_x
-  CLC
-  ADC #$08
-  STA $020f
-
-  PLA
-  TAY
-  PLA
-  TAX
-  PLA
-  PLP
-  RTS
-.endproc
-
-
-
 .proc draw_player
   ; save registers
   PHP
@@ -323,20 +249,8 @@ done_checking:
   TYA
   PHA
 
-  
-  ; LDA player_health
-  ; CMP #$00
-  ; BNE continue
-  ; JSR dead
-  ; JMP done
-
-  ; LDA player_state
-  ; CMP #$01
-  ; BCS go_left
-
-
-   ; Determine which frame to use based on player_animation counter
-  LDA #$20
+  ; Determine which frame to use based on player_animation counter
+  LDA #$10
   CMP frame_counter
   BEQ update_animation 
    
@@ -349,7 +263,6 @@ update_animation:
   BEQ reset_animation 
   INC player_animation
 
-
   LDA #$00
   STA frame_counter
   JMP evaluate_animation
@@ -359,14 +272,24 @@ reset_animation:
   STX player_animation
 
 evaluate_animation:
-  LDA player_state
-  AND #$01
-  BNE go_left
-  JSR player_right
-  JMP continue
+  LDX player_state
+  CPX #$01
+  BEQ go_left
 
+  CPX #$02
+  BEQ go_right
+
+  JMP stand
 go_left:
   JSR player_left
+  JMP continue
+
+go_right:
+  JSR player_walking_right
+  JMP continue
+
+stand:
+  JSR player_standing
 
 continue:
   STA $0202
@@ -418,6 +341,102 @@ done:
   RTS
 .endproc
 
+.proc player_standing
+  LDA #$02
+  STA $0201
+  LDA #$03
+  STA $0205
+  LDA #$12
+  STA $0209
+  LDA #$13
+  STA $020d
+  LDA #$00
+  RTS
+.endproc
+
+.proc player_walking_right
+  LDX player_animation
+
+  ; CPX #$01 
+  ; BEQ use_frame_2 ; standing
+
+  CPX #$01 
+  BEQ use_frame_2
+
+  CPX #$02 
+  BEQ use_frame_3 ; leaning
+
+  CPX #$03 
+  BEQ use_frame_2 ; walking 
+
+  CPX #$04 
+  BEQ use_frame_3 ; leaning
+
+  CPX #$05 
+  BEQ use_frame_2 ; walking 
+
+  CPX #$06 
+  BEQ use_frame_3 ; leaning
+
+; use_frame_1:
+;   ; entity stand
+;   LDA #$02
+;   STA $0201
+;   LDA #$03
+;   STA $0205
+;   LDA #$12
+;   STA $0209
+;   LDA #$13
+;   STA $020d
+
+;   JMP done_drawing_player
+
+use_frame_2:
+  LDA #$04
+  STA $0201
+  LDA #$05
+  STA $0205
+  LDA #$14
+  STA $0209
+  LDA #$15
+  STA $020d
+
+   ; use palette 0
+  ; LDA #$40
+
+  JMP done_drawing_player
+
+use_frame_3:
+  LDA #$06
+  STA $0201
+  LDA #$07
+  STA $0205
+  LDA #$16
+  STA $0209
+  LDA #$17
+  STA $020d
+
+  ; JMP done_drawing_player
+
+; use_frame_4:
+;   LDA #$08
+;   STA $0201
+;   LDA #$09
+;   STA $0205
+;   LDA #$18
+;   STA $0209
+;   LDA #$19
+;   STA $020d
+
+done_drawing_player:
+  ; use palette 0
+  LDA #$00
+
+finish:
+  RTS
+.endproc
+
+
 .proc player_right
   LDX player_animation
 
@@ -426,7 +445,7 @@ done:
   BEQ use_frame_2 ; standing
 
   CPX #$02 
-  BEQ use_frame_3 ; leaining
+  BEQ use_frame_3 ; leaning
 
   CPX #$03 
   BEQ use_frame_4 ; walking 
@@ -450,9 +469,6 @@ use_frame_1:
   STA $0209
   LDA #$13
   STA $020d
-
-   ; use palette 0
-  ; LDA #$40
 
   JMP done_drawing_player
 
@@ -494,7 +510,6 @@ use_frame_4:
   LDA #$19
   STA $020d
 
-
   JMP done_drawing_player
 
 use_frame_5:
@@ -506,10 +521,8 @@ use_frame_5:
   STA $0209
   LDA #$19
   STA $020d
-
   
   JMP done_drawing_with_damage
-
 
 use_frame_6:
   ; entity rip
@@ -522,9 +535,8 @@ use_frame_6:
   LDA #$34
   STA $020d
 
-  JMP done_drawing_player
+  JMP done_drawing_tombstone
 
-   
 done_drawing_with_damage:
   LDA #$03
   JMP finish
@@ -532,6 +544,10 @@ done_drawing_with_damage:
 done_drawing_player:
   ; use palette 0
   LDA #$00
+  JMP finish
+
+done_drawing_tombstone:
+  LDA #$02
 
 finish:
   RTS
@@ -549,7 +565,7 @@ finish:
   CPX #$02 
   BEQ use_frame_3
 
-   CPX #$04 
+  CPX #$04 
   BEQ use_frame_4
 
   CPX #$05 
@@ -637,7 +653,7 @@ use_frame_6:
   LDA #$33
   STA $020d
 
-  JMP done_drawing_player
+  JMP done_drawing_tombstone
 
 done_drawing_with_damage:
   LDA #$43
@@ -646,6 +662,10 @@ done_drawing_with_damage:
 done_drawing_player:
   ; use palette 0
   LDA #$40
+  JMP finish
+
+done_drawing_tombstone:
+  LDA #$42
   
 finish:
   RTS
@@ -667,7 +687,7 @@ palettes:
 .byte $3c, $06, $07, $08 ; All red
 
 CollisionMap:
-  .byte %11111111, %11111111, %11111111, %11111111
+  .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
@@ -682,7 +702,8 @@ CollisionMap:
   .byte %10000110, %00001111, %11000001, %10000001
   .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
-  .byte %10000001, %11111111, %11111110, %00000001
+  .byte %11111111, %11111111, %11111111, %11111111
+  ; .byte %10000001, %11111111, %11111110, %00000001
   .byte %10000000, %11111111, %11111100, %00000001
   .byte %10000000, %01111111, %11111000, %00000001
   .byte %10000000, %00011111, %11100000, %00000001
