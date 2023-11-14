@@ -12,7 +12,8 @@ pad1: .res 1
 tmp: .res 1
 player_state: .res 1
 player_animation: .res 1  ; Added player_animation variable
-.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp, player_animation
+player_health: .res 1
+.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp, player_animation, player_health
 
 .segment "CODE"
 .proc irq_handler
@@ -44,10 +45,15 @@ player_animation: .res 1  ; Added player_animation variable
 .import draw_platform
 
 .export main
+
+
 .proc main
+  LDA #$64
+  STA player_health
 
   LDA #%11111111
   STA player_state
+
 
   ; write a palette
   LDX PPUSTATUS
@@ -122,20 +128,21 @@ forever:
   TXA
   PHA
   TYA
-  PHA
+  PHA 
+
+
 
   LDX player_x
   LDY player_y
   JSR CheckCollide
   BEQ collides
-  LDY player_y
-  DEY
-  STY player_y
+
+  DEC player_y
+  ; DEY
+  ; STY player_y
 
 collides:
-  LDY player_y
-  INY
-  STY player_y
+  INC player_y
 
   LDA pad1        ; Load button presses
   AND #BTN_LEFT   ; Filter out all but Left
@@ -145,7 +152,6 @@ collides:
   LDA player_state
   AND #%11111110
   STA player_state
-
 
 check_right:
   LDA pad1
@@ -167,21 +173,19 @@ not_1:
 check_a:
   LDA pad1
   AND #BTN_A
-  BEQ done_checking
+  BEQ check_b
 
   LDX player_x
   LDY player_y
   JSR CheckCollide
-  BEQ done_checking
+  BEQ check_b
 
   LDX #$20
   
 jump:
-  JSR draw_player
-  LDY player_y
-  DEY
-  STY player_y
-  JSR draw_player
+  ; JSR draw_player
+  DEC player_y
+  ; JSR draw_player
 
   DEX
   CPX #$00
@@ -199,35 +203,21 @@ jump:
 ;   INY
 ;   STY player_y
 
-; check_a: ; J key
-;   LDA pad1
-;   AND #BTN_A
-;   BEQ check_b
-;   LDX player_x
-;   LDY player_y
-;   INX
-;   ; INY
-;   STX player_x
-;   STY player_y
+check_b: ; K key
+  LDA pad1
+  AND #BTN_B
+  BEQ done_checking
+  
 
-;   LDA #$01
-;   STA FACING
+  LDA player_health
+  CMP #$01
+  BPL is_0
+  LDA #$64
+  STA player_health
 
-; check_b: ; K key
-;   LDA pad1
-;   AND #BTN_B
-;   BEQ done_checking
-
-;   LDX player_x
-;   LDY player_y
-;   DEX
-;   DEY
-;   DEY
-;   STX player_x
-;   STY player_y
-
-;   LDA #$00
-;   STA FACING
+is_0:
+  LDA #$00
+  STA player_health
 
 done_checking:
 
@@ -280,6 +270,32 @@ done_checking:
   RTS
 .endproc
 
+.proc dead
+  PHP
+  PHA
+  TXA
+  PHA
+  TYA
+  PHA
+
+  LDA #$FF
+  STA $0201
+  LDA #$FF
+  STA $0205
+  LDA #$FF
+  STA $0209
+  LDA #$FF
+  STA $020d
+
+  PLA
+  TAY
+  PLA
+  TAX
+  PLA
+  PLP
+  RTS
+.endproc
+
 .proc draw_player
   ; save registers
   PHP
@@ -289,20 +305,34 @@ done_checking:
   TYA
   PHA
 
- ; Determine which frame to use based on player_animation counter
-  ; LDA player_animation
-  LDA #$03
+  
+  LDA player_health
+  CMP #$00
+  BNE continue
+  JSR dead
+  JMP done
 
-  CMP #$00 
+continue:
+
+ ; Determine which frame to use based on player_animation counter
+  LDX player_animation
+
+  CPX #$00 
   BEQ use_frame_1
-  CMP #$01
+
+  CPX #$0A
   BEQ use_frame_2
-  CMP #$02
+
+  CPX #$14
   BEQ use_frame_3
-  CMP #$03
+
+  CPX #$1E
   BEQ use_frame_4
 
-  JMP use_frame_1  ; Default to frame 1
+  ; STA $0203
+  ; STA $0207
+  ; STA $020b
+  ; STA $020f
 
 use_frame_1:
   ; entity stand
@@ -314,6 +344,8 @@ use_frame_1:
   STA $0209
   LDA #$13
   STA $020d
+
+  INC player_animation
   JMP done_drawing_player
 
 use_frame_2:
@@ -326,6 +358,8 @@ use_frame_2:
   STA $0209
   LDA #$15
   STA $020d
+
+  INC player_animation
   JMP done_drawing_player
 
 use_frame_3:
@@ -339,6 +373,8 @@ use_frame_3:
   STA $0209
   LDA #$17
   STA $020d
+
+  INC player_animation
   JMP done_drawing_player
 
 use_frame_4:
@@ -352,15 +388,19 @@ use_frame_4:
   STA $0209
   LDA #$19
   STA $020d
+
+  LDX #$00 
+  STX player_animation
+
   JMP done_drawing_player
 
 done_drawing_player:
   ; write player ship tile attributes
   ; use palette 0
-  STA $0202
-  STA $0206
-  STA $020a
-  STA $020e
+  ; STA $0202
+  ; STA $0206
+  ; STA $020a
+  ; STA $020e
 
   ; store tile locations
   ; top left tile:
@@ -396,6 +436,7 @@ done_drawing_player:
   STA $020f
 
   ; restore registers and return
+done:
   PLA
   TAY
   PLA
@@ -411,12 +452,12 @@ done_drawing_player:
 .segment "RODATA"
 palettes:
 .byte $3c, $03, $14, $23 ; Background
-.byte $3c, $15, $15, $15
-.byte $3c, $0f, $0f, $0f
+.byte $3c, $27, $37, $0f
+.byte $3c, $31, $30, $0f
 .byte $3c, $37, $37, $37
 
 .byte $3c, $15, $0f, $37 ; Sprite
-.byte $3c, $19, $09, $29
+.byte $3c, $15, $0f, $37
 .byte $3c, $19, $09, $29
 .byte $3c, $19, $09, $29
 
