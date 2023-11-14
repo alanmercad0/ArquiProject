@@ -6,28 +6,15 @@ player_x: .res 1
 player_y: .res 1
 player_dir_x: .res 1
 player_dir_y: .res 1
-<<<<<<< HEAD
-
-player_animation: .res 1  ; Added player_animation variable
-
-sprite1_x: .res 1   ; Allocate memory for sprite 1 position
-sprite1_y: .res 1
-sprite1_dir_x: .res 1  ; Define direction for sprite 1
-sprite1_dir_y: .res 1
-
-sprite2_x: .res 1   ; Allocate memory for sprite 2 position
-sprite2_y: .res 1
-sprite2_dir_x: .res 1  ; Define direction for sprite 2
-sprite2_dir_y: .res 1
-.exportzp player_x, player_y, player_dir_x, player_dir_y, player_animation, sprite1_x, sprite1_y, sprite1_dir_x, sprite1_dir_y, sprite2_x, sprite2_y, sprite2_dir_x, sprite2_dir_y
-
-=======
 velocity_y: .res 1
 ppuctrl_settings: .res 1
 pad1: .res 1
 tmp: .res 1
-.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp
->>>>>>> 9f3ad2976fdd0c1447b56e234aa0d3bb632692a8
+player_state: .res 1
+player_animation: .res 1  ; Added player_animation variable
+frame_counter: .res 1
+player_health: .res 1
+.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp, player_animation, frame_counter, player_health
 
 .segment "CODE"
 .proc irq_handler
@@ -45,6 +32,7 @@ tmp: .res 1
 
 
   ; update tiles *after* DMA transfer
+  
   JSR read_controller1
 	JSR update_player
   JSR draw_player
@@ -58,13 +46,23 @@ tmp: .res 1
 .import draw_platform
 
 .export main
+
+
 .proc main
+  LDA #$64
+  STA player_health
+
+  LDA #%11111111
+  STA player_state
+
+
   ; write a palette
   LDX PPUSTATUS
   LDX #$3f
   STX PPUADDR
   LDX #$00
   STX PPUADDR
+
 load_palettes:
   LDA palettes,X
   STA PPUDATA
@@ -74,22 +72,23 @@ load_palettes:
 
   JSR draw_platform
 
-	; finally, attribute table
-	LDA PPUSTATUS
-	LDA #$23
-	STA PPUADDR
-	LDA #$a2
-	STA PPUADDR
-	LDA #%11000000
-	STA PPUDATA
 
-	LDA PPUSTATUS
-	LDA #$23
-	STA PPUADDR
-	LDA #$e0
-	STA PPUADDR
-	LDA #%00001100
-	STA PPUDATA
+	; finally, attribute table
+	; LDA PPUSTATUS
+	; LDA #$23
+	; STA PPUADDR
+	; LDA #$a2
+	; STA PPUADDR
+	; LDA #%11000000
+	; STA PPUDATA
+
+	; LDA PPUSTATUS
+	; LDA #$23
+	; STA PPUADDR
+	; LDA #$e0
+	; STA PPUADDR
+	; LDA #%00001100
+	; STA PPUDATA
 
 vblankwait:       ; wait for another vblank before continuing
   BIT PPUSTATUS
@@ -101,23 +100,6 @@ vblankwait:       ; wait for another vblank before continuing
   LDA #%00011110  ; turn on screen
   STA PPUMASK
 
-;   ; Increment player_animation counter to switch frames
-;   LDA player_animation
-;   CLC
-;   ADC #$01
-;   STA player_animation
-
-;   ; Check if player_animation exceeds the maximum frame value
-;   LDA player_animation
-;   CMP #$04  ; Adjust the value based on your maximum frame value (here, $04 is one more than the highest frame value)
-;   BCC not_at_max_value  ; Branch if not at max value
-
-;   ; Reset player_animation to the starting frame
-;   LDA #$00  ; Set it to the value of the first frame
-;   STA player_animation
-
-; not_at_max_value:
-; ; Continue with the rest of your code
 
 forever:
   JMP forever
@@ -130,144 +112,98 @@ forever:
   TXA
   PHA
   TYA
-  PHA
+  PHA 
+
+
 
   LDX player_x
   LDY player_y
   JSR CheckCollide
   BEQ collides
-  LDY player_y
-  DEY
-  STY player_y
 
-<<<<<<< HEAD
-first_row:
-  LDA PPUSTATUS
-	LDA #$21
-	STA PPUADDR
-	STY PPUADDR
-	LDX #$30
-	STX PPUDATA
-=======
-
+  DEC player_y
+  ; DEY
+  ; STY player_y
 
 collides:
-  LDY player_y
->>>>>>> 9f3ad2976fdd0c1447b56e234aa0d3bb632692a8
-  INY
-  STY player_y
+  INC player_y
 
-  ; INC player_y
-  ; INC player_y
-
-<<<<<<< HEAD
-second_row:
-  LDA PPUSTATUS
-	LDA #$22
-	STA PPUADDR
-	STY PPUADDR
-	LDX #$30
-	STX PPUDATA
-  INY
-  CPY #$18
-  BNE second_row
-
-  LDY #$29 
-
-third_row:
-  LDA PPUSTATUS
-	LDA #$22
-	STA PPUADDR
-	STY PPUADDR
-	LDX #$30
-	STX PPUDATA
-=======
-  ; DEC player_y ; Does collide
-  ; DEC player_y
-
-
-; continue:
   LDA pad1        ; Load button presses
   AND #BTN_LEFT   ; Filter out all but Left
   BEQ check_right ; If result is zero, left not pressed
   DEC player_x    ; If the branch is not taken, move player left
 
-  LDA #$01
-  STA FACING
+  LDA player_state
+  AND #%11111110
+  STA player_state
 
 check_right:
   LDA pad1
   AND #BTN_RIGHT
-  BEQ check_up
+  BEQ check_a
   INC player_x
 
-  LDA #$00
-  STA FACING
+  LDA player_state
+  AND #%00000001
+  BEQ not_1
+  STA player_state
+  JMP check_a
 
-check_up:
+not_1:
+  LDX player_state
+  INX
+  STX player_state
+
+check_a:
   LDA pad1
-  AND #BTN_UP
-  BEQ check_down
+  AND #BTN_A
+  BEQ check_b
 
   LDX player_x
   LDY player_y
   JSR CheckCollide
-  BEQ check_down
+  BEQ check_b
 
-  LDX #$10
+  LDX #$20
+  
 jump:
-  LDY player_y
-  DEY
-  DEY
-  STY player_y
+  ; JSR draw_player
+  DEC player_y
+  ; JSR draw_player
 
   DEX
   CPX #$00
-  BEQ check_down
+  BEQ done_checking
 
   JMP jump
 
+; check_down:
+;   LDA pad1
+;   AND #BTN_DOWN
+;   BEQ done_checking
 
-check_down:
+;   LDY player_y
+;   INY
+;   INY
+;   STY player_y
+
+check_b: ; K key
   LDA pad1
-  AND #BTN_DOWN
+  AND #BTN_B
   BEQ done_checking
+  
 
-  LDY player_y
-  INY
->>>>>>> 9f3ad2976fdd0c1447b56e234aa0d3bb632692a8
-  INY
-  STY player_y
+  LDA player_health
+  CMP #$01
+  BPL is_0
+  LDA #$64
+  STA player_health
 
-<<<<<<< HEAD
-  LDY #$4b
+is_0:
+  LDA #$00
+  STA player_health
 
-fourth_row:
-  LDA PPUSTATUS
-	LDA #$22
-	STA PPUADDR
-	STY PPUADDR
-	LDX #$30
-	STX PPUDATA
-  INY
-  CPY #$55
-  BNE fourth_row
-
-  LDY #$6D
-
-fifth_row:
-  LDA PPUSTATUS
-	LDA #$22
-	STA PPUADDR
-	STY PPUADDR
-	LDX #$30
-	STX PPUDATA
-  INY
-  CPY #$73
-  BNE fifth_row
-=======
 done_checking:
->>>>>>> 9f3ad2976fdd0c1447b56e234aa0d3bb632692a8
 
   PLA
   TAY
@@ -278,18 +214,8 @@ done_checking:
   RTS
 .endproc
 
-<<<<<<< HEAD
-.proc update_player
-  PHP        ; Push processor status register onto the stack
-  PHA        ; Push accumulator onto the stack
-  TXA        ; Transfer X register to accumulator
-  PHA        ; Push accumulator onto the stack
-  TYA        ; Transfer Y register to accumulator
-  PHA        ; Push accumulator onto the stack
-=======
 .proc CheckCollide
   TXA
->>>>>>> 9f3ad2976fdd0c1447b56e234aa0d3bb632692a8
 
   LSR
   LSR
@@ -298,32 +224,6 @@ done_checking:
   LSR
   LSR
 
-<<<<<<< HEAD
-
-  ; Update player_y
-;   LDA player_y
-;   CMP #$e0
-;   BCC not_at_bottom_edge_y
-;   LDA #$00
-;   STA player_dir_y    ; Start moving up
-;   JMP direction_set_y
-; not_at_bottom_edge_y:
-;   LDA player_y
-;   CMP #$10
-;   BCS direction_set_y
-;   LDA #$01
-;   STA player_dir_y   ; Start moving down
-; direction_set_y:
-;   LDA player_dir_y
-;   CMP #$01
-;   BEQ move_down_y
-;   DEC player_y
-;   DEC player_y  ; Increase the decrement to move faster in Y
-;   JMP exit_subroutine_xy
-; move_down_y:
-;   INC player_y
-;   INC player_y  ; Increase the increment to move faster in Y
-=======
   STA tmp
 
   TYA 
@@ -337,7 +237,6 @@ done_checking:
 
   CLC
   ADC tmp
->>>>>>> 9f3ad2976fdd0c1447b56e234aa0d3bb632692a8
 
   TAY
   TXA
@@ -355,6 +254,32 @@ done_checking:
   RTS
 .endproc
 
+.proc dead
+  PHP
+  PHA
+  TXA
+  PHA
+  TYA
+  PHA
+
+  LDA #$FF
+  STA $0201
+  LDA #$FF
+  STA $0205
+  LDA #$FF
+  STA $0209
+  LDA #$FF
+  STA $020d
+
+  PLA
+  TAY
+  PLA
+  TAX
+  PLA
+  PLP
+  RTS
+.endproc
+
 .proc draw_player
   ; save registers
   PHP
@@ -364,21 +289,53 @@ done_checking:
   TYA
   PHA
 
-<<<<<<< HEAD
- ; Determine which frame to use based on player_animation counter
-  ; LDA player_animation
-  LDA #$03
+  
+  LDA player_health
+  CMP #$00
+  BNE continue
+  JSR dead
+  JMP done
 
-  CMP #$00 
+continue:
+
+   ; Determine which frame to use based on player_animation counter
+  LDA #$3f
+  CMP frame_counter
+  BEQ update_animation ;if frame_counter = 0, then update animation
+   
+  INC frame_counter
+  JMP evaluate_animation
+
+update_animation:
+  LDA #$05
+  CMP player_animation
+  BEQ reset_animation 
+  INC player_animation
+
+
+  LDA #$00
+  STA frame_counter
+  JMP evaluate_animation
+
+reset_animation:
+  LDX #$00 
+  STX player_animation
+
+evaluate_animation:
+
+  LDX player_animation
+
+  CPX #$00 
   BEQ use_frame_1
-  CMP #$01
-  BEQ use_frame_2
-  CMP #$02
-  BEQ use_frame_3
-  CMP #$03
-  BEQ use_frame_4
 
-  JMP use_frame_1  ; Default to frame 1
+  CPX #$01 ;60s
+  BEQ use_frame_2
+
+  CPX #$02 ;120s
+  BEQ use_frame_3
+
+  CPX #$03 ;180s
+  BEQ use_frame_4
 
 use_frame_1:
   ; entity stand
@@ -390,10 +347,10 @@ use_frame_1:
   STA $0209
   LDA #$13
   STA $020d
+
   JMP done_drawing_player
 
 use_frame_2:
-  ; entity run 
   LDA #$04
   STA $0201
   LDA #$05
@@ -402,11 +359,10 @@ use_frame_2:
   STA $0209
   LDA #$15
   STA $020d
+
   JMP done_drawing_player
 
 use_frame_3:
-  ; Add code for frame 3 (if different from frame 1)
-  ; entity run 
   LDA #$06
   STA $0201
   LDA #$07
@@ -415,11 +371,11 @@ use_frame_3:
   STA $0209
   LDA #$17
   STA $020d
+
   JMP done_drawing_player
 
 use_frame_4:
-  ; Add code for frame 4 (if different from frame 1)
-  ; write player ship tile numbers
+  ; entity stand
   LDA #$08
   STA $0201
   LDA #$09
@@ -428,46 +384,14 @@ use_frame_4:
   STA $0209
   LDA #$19
   STA $020d
+  
+  ; LDX #$00 
+  ; STX player_animation
+
   JMP done_drawing_player
 
+
 done_drawing_player:
-=======
-  ; Check which direction player is facing
-  LDA FACING
-  CMP #%00000001
-  BEQ go_left
-  JMP go_right
-
-
-go_left:
-  LDA #$01
-  STA $0201
-  LDA #$00
-  STA $0205
-  LDA #$11
-  STA $0209
-  LDA #$10
-  STA $020d
-  LDA #$40
-  JMP continue
-
-go_right:
-  LDA pad1
-  AND #BTN_RIGHT
-  LDA #$00
-  STA $0201
-  LDA #$01
-  STA $0205
-  LDA #$10
-  STA $0209
-  LDA #$11
-  STA $020d
-  LDA #$00
-
-  ; write player ship tile numbers
-
-continue:
->>>>>>> 9f3ad2976fdd0c1447b56e234aa0d3bb632692a8
   ; write player ship tile attributes
   ; use palette 0
   STA $0202
@@ -509,6 +433,7 @@ continue:
   STA $020f
 
   ; restore registers and return
+done:
   PLA
   TAY
   PLA
@@ -524,17 +449,15 @@ continue:
 .segment "RODATA"
 palettes:
 .byte $3c, $03, $14, $23 ; Background
-.byte $3c, $15, $15, $15
-.byte $3c, $0f, $0f, $0f
+.byte $3c, $27, $37, $0f
+.byte $3c, $31, $30, $0f
 .byte $3c, $37, $37, $37
 
 .byte $3c, $15, $0f, $37 ; Sprite
-.byte $3c, $19, $09, $29
+.byte $3c, $15, $0f, $37
 .byte $3c, $19, $09, $29
 .byte $3c, $19, $09, $29
 
-<<<<<<< HEAD
-=======
 CollisionMap:
   .byte %11111111, %11111111, %11111111, %11111111
   .byte %10000000, %00000000, %00000000, %00000001
@@ -567,7 +490,7 @@ CollisionMap:
   .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
-  .byte %11111111, %11111111, %11111111, %11111111
+  .byte %10000000, %00000000, %00000000, %00000001
 
 BitMask:
   .byte %10000000
@@ -579,7 +502,6 @@ BitMask:
   .byte %00000010
   .byte %00000001
 
->>>>>>> 9f3ad2976fdd0c1447b56e234aa0d3bb632692a8
 
 .segment "CHR"
 .incbin "initialIdeas.chr"
