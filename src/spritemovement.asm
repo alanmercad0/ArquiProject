@@ -4,9 +4,6 @@
 .segment "ZEROPAGE"
 player_x: .res 1
 player_y: .res 1
-player_dir_x: .res 1
-player_dir_y: .res 1
-velocity_y: .res 1
 ppuctrl_settings: .res 1
 pad1: .res 1
 tmp: .res 1
@@ -16,7 +13,8 @@ frame_counter: .res 1
 player_health: .res 1
 counter: .res 1
 jumping: .res 1
-.exportzp player_x, player_y, player_dir_x, player_dir_y, pad1, velocity_y, tmp, player_animation, player_health
+last_state: .res 1
+.exportzp player_x, player_y, pad1, tmp, player_animation, player_health, last_state, counter
 
 .segment "CODE"
 .proc irq_handler
@@ -24,6 +22,7 @@ jumping: .res 1
 .endproc
 
 .import read_controller1
+.import player_standing, player_walking_left, player_walking_right, player_left, player_right, punching
 
 .proc nmi_handler
   LDA #$00
@@ -128,6 +127,9 @@ check_left:
   LDA #$01
   STA player_state
 
+  LDA #$01
+  STA last_state
+
   DEC player_x    ; If the branch is not taken, move player left
 
 
@@ -138,6 +140,9 @@ check_right:
 
   LDA #$02
   STA player_state
+
+  LDA #$02
+  STA last_state
 
   LDA player_x
   CMP #$F5
@@ -186,6 +191,9 @@ check_b: ; K key
   LDA pad1
   AND #BTN_B
   BEQ done_checking
+
+  LDA #$04
+  STA player_state
   
   ; JSR dead
 
@@ -279,13 +287,21 @@ evaluate_animation:
   CPX #$02
   BEQ go_right
 
+  CPX #$04
+  BEQ punch
+
   JMP stand
+
 go_left:
-  JSR player_left
+  JSR player_left 
   JMP continue
 
 go_right:
   JSR player_walking_right
+  JMP continue
+
+punch:
+  JSR punching
   JMP continue
 
 stand:
@@ -341,336 +357,6 @@ done:
   RTS
 .endproc
 
-.proc player_standing
-  LDA #$02
-  STA $0201
-  LDA #$03
-  STA $0205
-  LDA #$12
-  STA $0209
-  LDA #$13
-  STA $020d
-  LDA #$00
-  RTS
-.endproc
-
-.proc player_walking_right
-  LDX player_animation
-
-  ; CPX #$01 
-  ; BEQ use_frame_2 ; standing
-
-  CPX #$01 
-  BEQ use_frame_2
-
-  CPX #$02 
-  BEQ use_frame_3 ; leaning
-
-  CPX #$03 
-  BEQ use_frame_2 ; walking 
-
-  CPX #$04 
-  BEQ use_frame_3 ; leaning
-
-  CPX #$05 
-  BEQ use_frame_2 ; walking 
-
-  CPX #$06 
-  BEQ use_frame_3 ; leaning
-
-; use_frame_1:
-;   ; entity stand
-;   LDA #$02
-;   STA $0201
-;   LDA #$03
-;   STA $0205
-;   LDA #$12
-;   STA $0209
-;   LDA #$13
-;   STA $020d
-
-;   JMP done_drawing_player
-
-use_frame_2:
-  LDA #$04
-  STA $0201
-  LDA #$05
-  STA $0205
-  LDA #$14
-  STA $0209
-  LDA #$15
-  STA $020d
-
-   ; use palette 0
-  ; LDA #$40
-
-  JMP done_drawing_player
-
-use_frame_3:
-  LDA #$06
-  STA $0201
-  LDA #$07
-  STA $0205
-  LDA #$16
-  STA $0209
-  LDA #$17
-  STA $020d
-
-  ; JMP done_drawing_player
-
-; use_frame_4:
-;   LDA #$08
-;   STA $0201
-;   LDA #$09
-;   STA $0205
-;   LDA #$18
-;   STA $0209
-;   LDA #$19
-;   STA $020d
-
-done_drawing_player:
-  ; use palette 0
-  LDA #$00
-
-finish:
-  RTS
-.endproc
-
-
-.proc player_right
-  LDX player_animation
-
-
-  CPX #$01 
-  BEQ use_frame_2 ; standing
-
-  CPX #$02 
-  BEQ use_frame_3 ; leaning
-
-  CPX #$03 
-  BEQ use_frame_4 ; walking 
-
-  CPX #$04 
-  BEQ use_frame_4 ; attack
-
-  CPX #$05 
-  BEQ use_frame_5 ; attack with damage
-
-  CPX #$06
-  BEQ use_frame_6 ; rip
-
-use_frame_1:
-  ; entity stand
-  LDA #$02
-  STA $0201
-  LDA #$03
-  STA $0205
-  LDA #$12
-  STA $0209
-  LDA #$13
-  STA $020d
-
-  JMP done_drawing_player
-
-use_frame_2:
-  LDA #$04
-  STA $0201
-  LDA #$05
-  STA $0205
-  LDA #$14
-  STA $0209
-  LDA #$15
-  STA $020d
-
-   ; use palette 0
-  ; LDA #$40
-
-  JMP done_drawing_player
-
-use_frame_3:
-  LDA #$06
-  STA $0201
-  LDA #$07
-  STA $0205
-  LDA #$16
-  STA $0209
-  LDA #$17
-  STA $020d
-
-
-  JMP done_drawing_player
-
-use_frame_4:
-  LDA #$08
-  STA $0201
-  LDA #$09
-  STA $0205
-  LDA #$18
-  STA $0209
-  LDA #$19
-  STA $020d
-
-  JMP done_drawing_player
-
-use_frame_5:
-  LDA #$08
-  STA $0201
-  LDA #$09
-  STA $0205
-  LDA #$18
-  STA $0209
-  LDA #$19
-  STA $020d
-  
-  JMP done_drawing_with_damage
-
-use_frame_6:
-  ; entity rip
-  LDA #$23
-  STA $0201
-  LDA #$24
-  STA $0205
-  LDA #$33
-  STA $0209
-  LDA #$34
-  STA $020d
-
-  JMP done_drawing_tombstone
-
-done_drawing_with_damage:
-  LDA #$03
-  JMP finish
-
-done_drawing_player:
-  ; use palette 0
-  LDA #$00
-  JMP finish
-
-done_drawing_tombstone:
-  LDA #$02
-
-finish:
-  RTS
-.endproc
-
-.proc player_left
-  LDX player_animation
-
-;   CPX #$00 
-;   BEQ use_frame_1
-
-  CPX #$01 
-  BEQ use_frame_2
-
-  CPX #$02 
-  BEQ use_frame_3
-
-  CPX #$04 
-  BEQ use_frame_4
-
-  CPX #$05 
-  BEQ use_frame_5
-
-  CPX #$06
-  BEQ use_frame_6
-
-use_frame_1:
-  ; entity stand
-  LDA #$03
-  STA $0201
-  LDA #$02
-  STA $0205
-  LDA #$13
-  STA $0209
-  LDA #$12
-  STA $020d
-
-  ; using pallete 0
-  ; LDA #$00
-
-  JMP done_drawing_player
-
-use_frame_2:
-  LDA #$05
-  STA $0201
-  LDA #$04
-  STA $0205
-  LDA #$15
-  STA $0209
-  LDA #$14
-  STA $020d
-
-
-  JMP done_drawing_player
-
-use_frame_3:
-  LDA #$07
-  STA $0201
-  LDA #$06
-  STA $0205
-  LDA #$17
-  STA $0209
-  LDA #$16
-  STA $020d
-
-
-  JMP done_drawing_player
-
-use_frame_4:
-  ; entity stand
-  LDA #$09
-  STA $0201
-  LDA #$08
-  STA $0205
-  LDA #$19
-  STA $0209
-  LDA #$18
-  STA $020d
-
-  JMP done_drawing_player
-
-use_frame_5:
-  LDA #$09
-  STA $0201
-  LDA #$08
-  STA $0205
-  LDA #$19
-  STA $0209
-  LDA #$18
-  STA $020d
-
-
-  JMP done_drawing_with_damage
-
-use_frame_6:
-  ; entity rip
-  LDA #$24
-  STA $0201
-  LDA #$23
-  STA $0205
-  LDA #$34
-  STA $0209
-  LDA #$33
-  STA $020d
-
-  JMP done_drawing_tombstone
-
-done_drawing_with_damage:
-  LDA #$43
-  JMP finish
-
-done_drawing_player:
-  ; use palette 0
-  LDA #$40
-  JMP finish
-
-done_drawing_tombstone:
-  LDA #$42
-  
-finish:
-  RTS
-.endproc
-
 .segment "VECTORS"
 .addr nmi_handler, reset_handler, irq_handler
 
@@ -702,8 +388,7 @@ CollisionMap:
   .byte %10000110, %00001111, %11000001, %10000001
   .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
-  .byte %11111111, %11111111, %11111111, %11111111
-  ; .byte %10000001, %11111111, %11111110, %00000001
+  .byte %10000001, %11111111, %11111110, %00000001
   .byte %10000000, %11111111, %11111100, %00000001
   .byte %10000000, %01111111, %11111000, %00000001
   .byte %10000000, %00011111, %11100000, %00000001
