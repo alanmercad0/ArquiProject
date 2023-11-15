@@ -4,28 +4,41 @@
 .importzp player_x, player_y, last_state, player_animation, counter
 
 .segment "CODE"
-.export player_standing, player_walking_left, player_walking_right, player_left, player_right, punching
+.export player_standing, player_walking_left, player_walking_right, player_left, player_right, punching, player_leaping, dance
 
 .proc punching
-    LDA last_state
-    CMP #$02
+    ; LDA last_state
+    ; CMP #$02
 
-    LDA counter
-    AND #$14
-    BEQ done
+    ; LDA counter
+    ; AND #$14
+    ; BEQ done
 
-    LDA #$03
+    LDA #$08
     STA $0201
-    LDA #$02
+    LDA #$09
     STA $0205
-    LDA #$13
+    LDA #$18
     STA $0209
-    LDA #$12
+    LDA #$19
     STA $020d
-    LDA #$40
 
 done:
+    LDA #$00
     RTS
+.endproc
+
+.proc player_leaping
+  LDA #$25
+  STA $0201
+  LDA #$26
+  STA $0205
+  LDA #$35
+  STA $0209
+  LDA #$36
+  STA $020d
+  LDA #$00
+  RTS
 .endproc
 
 .proc player_standing
@@ -56,6 +69,55 @@ standing_right:
   LDA #$00
 
 return:
+  RTS
+.endproc
+
+.proc dance
+  LDX player_animation
+
+  CPX #$01 
+  BEQ use_frame_1
+
+  CPX #$02 
+  BEQ use_frame_2
+
+  CPX #$03 
+  BEQ use_frame_1
+
+  CPX #$04 
+  BEQ use_frame_2
+
+  CPX #$05 
+  BEQ use_frame_1
+
+  CPX #$06 
+  BEQ use_frame_2
+
+use_frame_1:
+  LDA #$25
+  STA $0201
+  LDA #$26
+  STA $0205
+  LDA #$35
+  STA $0209
+  LDA #$36
+  STA $020d
+  LDA #$00
+
+  JMP done_drawing_player
+
+use_frame_2:
+  LDA #$26
+  STA $0201
+  LDA #$25
+  STA $0205
+  LDA #$36
+  STA $0209
+  LDA #$35
+  STA $020d
+  LDA #$40
+
+done_drawing_player:
   RTS
 .endproc
 

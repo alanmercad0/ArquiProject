@@ -23,7 +23,7 @@ is_jumping: .res 1
 .endproc
 
 .import read_controller1
-.import player_standing, player_walking_left, player_walking_right, player_left, player_right, punching
+.import player_standing, player_walking_left, player_walking_right, player_left, player_right, punching, player_leaping, dance
 
 .proc nmi_handler
   LDA #$00
@@ -156,9 +156,6 @@ check_up:
   AND #BTN_UP
   BEQ check_down
 
-  LDA #$03
-  STA player_state
-
   DEC player_y
   DEC player_y
 
@@ -167,10 +164,8 @@ check_down:
   AND #BTN_DOWN
   BEQ check_jumping
 
-  ; LDA #$03
-  ; STA player_state
-
-  INC player_y
+  LDA #$05
+  STA player_state
 
 check_jumping:
   LDX jumping
@@ -180,6 +175,8 @@ check_jumping:
   DEC player_y
   DEC player_y
   DEC jumping
+  LDA #$03
+  STA player_state
   JMP check_b
 
 check_a:
@@ -191,6 +188,8 @@ check_a:
   LDY player_y
   JSR CheckCollide
   BEQ check_b
+
+  
   LDA #$0E
   STA jumping
 
@@ -300,10 +299,13 @@ evaluate_animation:
   CPX #$04
   BEQ punch
 
+  CPX #$05
+  BEQ dance
+
   JMP stand
 
 go_left:
-  JSR player_left 
+  JSR player_walking_left 
   JMP continue
 
 go_right:
@@ -316,6 +318,10 @@ go_leap:
 
 punch:
   JSR punching
+  JMP continue
+
+dance:
+  JSR dance
   JMP continue
 
 stand:
