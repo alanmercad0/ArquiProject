@@ -197,41 +197,38 @@ done_checking:
 .endproc
 
 .proc CheckCollide
-  TXA
+  TXA           ; X / 64
+  LSR
+  LSR
+  LSR
+  LSR
+  LSR
+  LSR
+  STA tmp       ; Store X temporarily
 
+  TYA           ; (Y / 8) * 4
+  LSR           ; Y / 8
   LSR
   LSR
-  LSR
-  LSR
-  LSR
-  LSR
-
-  STA tmp
-
-  TYA 
-
-  LSR
-  LSR
-  LSR
-
-  ASL
+  ASL           ; Y * 4
   ASL
 
   CLC
   ADC tmp
 
-  TAY
-  TXA
+  TAY           ; Byte index
 
+  TXA           ; X / 8
   LSR 
   LSR 
   LSR
 
-  AND #%0111
-  TAX
+  AND #%0111    
+
+  TAX           ; Bit mask index
 
   LDA CollisionMap, Y
-  AND BitMask, X
+  AND BitMask, X  ; Set to 0 if it doesnt collide, 1 if it does
 
   RTS
 .endproc
@@ -381,6 +378,7 @@ palettes:
 .byte $3c, $06, $07, $08 ; All red
 
 CollisionMap:
+  ; Set the blocks that can be collided with
   .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
   .byte %10000000, %00000000, %00000000, %00000001
