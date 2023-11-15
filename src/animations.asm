@@ -7,13 +7,22 @@
 .export player_standing, player_walking_left, player_walking_right, player_left, player_right, punching, player_leaping, player_dance, player_death
 
 .proc punching
-    ; LDA last_state
-    ; CMP #$02
+    LDA last_state
+    CMP #$02
+    BEQ punch_right
 
-    ; LDA counter
-    ; AND #$14
-    ; BEQ done
+    LDA #$09
+    STA $0201
+    LDA #$08
+    STA $0205
+    LDA #$19
+    STA $0209
+    LDA #$18
+    STA $020d
+    LDA #$40
+    JMP done
 
+punch_right:
     LDA #$08
     STA $0201
     LDA #$09
@@ -22,9 +31,9 @@
     STA $0209
     LDA #$19
     STA $020d
+    LDA #$00
 
 done:
-    LDA #$00
     RTS
 .endproc
 
