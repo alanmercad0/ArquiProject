@@ -99,7 +99,6 @@ forever:
 collides:
   INC player_y      ; If colliding, negate 'gravity'
 
-
 check_left:
   LDA pad1          ; Check if left is being pressed
   AND #BTN_LEFT   
@@ -275,6 +274,7 @@ reset_animation:
 ; evaluates frames to use based on player_state, determined by controls
 evaluate_animation:
   LDX player_state
+
   CPX #$01
   BEQ go_left
 
@@ -294,11 +294,11 @@ evaluate_animation:
   BEQ death
 
   JSR player_standing
+  JMP continue
 
 go_left:
   JSR player_walking_left 
   JMP continue
-
 
 go_right:
   JSR player_walking_right
@@ -319,7 +319,6 @@ dance:
 death:
   JSR player_death
   JMP continue
-
 
 continue:
   STA $0202
