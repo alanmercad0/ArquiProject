@@ -151,6 +151,9 @@ check_up:
   AND #BTN_UP
   BEQ check_down
 
+  LDA #$03
+  STA player_state
+
   DEC player_y
   DEC player_y
 
@@ -159,8 +162,8 @@ check_down:
   AND #BTN_DOWN
   BEQ check_jumping
 
-  LDA #$03
-  STA player_state
+  ; LDA #$03
+  ; STA player_state
 
   INC player_y
 
