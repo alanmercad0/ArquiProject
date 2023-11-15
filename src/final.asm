@@ -433,4 +433,4 @@ BitMask:
 
 
 .segment "CHR"
-.incbin "addedJump.chr"
+.incbin "final.chr"
