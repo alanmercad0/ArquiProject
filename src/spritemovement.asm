@@ -14,7 +14,8 @@ player_health: .res 1
 counter: .res 1
 jumping: .res 1
 last_state: .res 1
-.exportzp player_x, player_y, pad1, tmp, player_animation, player_health, last_state, counter
+is_jumping: .res 1
+.exportzp player_x, player_y, pad1, tmp, player_animation, player_health, last_state, counter, is_jumping
 
 .segment "CODE"
 .proc irq_handler
@@ -155,6 +156,9 @@ check_up:
   AND #BTN_UP
   BEQ check_down
 
+  LDA #$03
+  STA player_state
+
   DEC player_y
   DEC player_y
 
@@ -162,6 +166,9 @@ check_down:
   LDA pad1
   AND #BTN_DOWN
   BEQ check_jumping
+
+  ; LDA #$03
+  ; STA player_state
 
   INC player_y
 
@@ -287,6 +294,9 @@ evaluate_animation:
   CPX #$02
   BEQ go_right
 
+  CPX #$03
+  BEQ go_leap
+
   CPX #$04
   BEQ punch
 
@@ -298,6 +308,10 @@ go_left:
 
 go_right:
   JSR player_walking_right
+  JMP continue
+
+go_leap:
+  JSR player_leaping
   JMP continue
 
 punch:
@@ -418,4 +432,4 @@ BitMask:
 
 
 .segment "CHR"
-.incbin "addedTombstone.chr"
+.incbin "addedJump.chr"
