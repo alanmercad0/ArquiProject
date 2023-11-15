@@ -10,12 +10,11 @@ tmp: .res 1
 player_state: .res 1
 player_animation: .res 1  ; Added player_animation variable
 frame_counter: .res 1
-player_health: .res 1
 counter: .res 1
 jumping: .res 1
 last_state: .res 1
 is_jumping: .res 1
-.exportzp player_x, player_y, pad1, tmp, player_animation, player_health, last_state, counter, is_jumping
+.exportzp player_x, player_y, pad1, tmp, player_animation, last_state, counter, is_jumping
 
 .segment "CODE"
 .proc irq_handler
@@ -31,7 +30,6 @@ is_jumping: .res 1
   LDA #$02
   STA OAMDMA
 	LDA #$00
-
 
   ; update tiles *after* DMA transfer
   
@@ -49,14 +47,7 @@ is_jumping: .res 1
 
 .export main
 
-
 .proc main
-  LDA #$64
-  STA player_health
-
-  LDA #%11111111
-  STA player_state
-
   ; write a palette
   LDX PPUSTATUS
   LDX #$3f
@@ -64,11 +55,11 @@ is_jumping: .res 1
   LDX #$00
   STX PPUADDR
 
-load_palettes:
+load_palettes:    ; Load all the palettes into the PPUDATA
   LDA palettes,X
   STA PPUDATA
   INX
-  CPX #$20
+  CPX #$20        ; 32 items
   BNE load_palettes
 
   JSR draw_platform
@@ -83,11 +74,9 @@ vblankwait:       ; wait for another vblank before continuing
   LDA #%00011110  ; turn on screen
   STA PPUMASK
 
-
 forever:
   JMP forever
 .endproc
-
 
 .proc update_player
   PHP
@@ -97,111 +86,104 @@ forever:
   TYA
   PHA 
 
-  LDA #$00
+  LDA #$00          ; Load 0 into player state so that it always goes back to default when not pressing button
   STA player_state
 
-  LDX player_x
+  LDX player_x      
   LDY player_y
-  JSR CheckCollide
-  BEQ collides
+  JSR CheckCollide  ; Check if sprite is colliding with a block in the collision map
+  BEQ collides      ; If the CheckCollide subroutine returns 0, it is colliding
 
-  DEC player_y
-  ; DEY
-  ; STY player_y
+  DEC player_y      ; Add 'gravity' to sprite by always pulling it down unless colliding
 
 collides:
-  INC player_y
-  ; LDA player_y
-  CMP #$F0
-  BCS check_left
+  INC player_y      ; If colliding, negate 'gravity'
 
 
 check_left:
-  LDA pad1        ; Load button presses
-  AND #BTN_LEFT   ; Filter out all but Left
-  BEQ check_right ; If result is zero, left not pressed
+  LDA pad1          ; Check if left is being pressed
+  AND #BTN_LEFT   
+  BEQ check_right   ; Left is not pressed
 
-  LDA player_x   ; Check if Sprite is at left border
+  LDA player_x      ; Check if Sprite is at left border
   CMP #$05
-  BCC done_checking
+  BCC done_checking ; Stop drawing sprite if at border
 
   LDA #$01
-  STA player_state ; Walking left animation
+  STA player_state  ; Load state with 1 for walking left animation
 
   LDA #$01
-  STA last_state ; Save state for future reference
+  STA last_state    ; Save state for future reference
 
-  DEC player_x   ; Move left
-
+  DEC player_x      ; Move left
 
 check_right:
-  LDA pad1
+  LDA pad1          ; Check if right is being pressed  
   AND #BTN_RIGHT
-  BEQ check_up
+  BEQ check_up      ; Right is not pressed
 
   LDA #$02
-  STA player_state
+  STA player_state  ; Load state with 2 for walking right animation
 
   LDA #$02
-  STA last_state
+  STA last_state    ; Save state for future reference
 
-  LDA player_x
+  LDA player_x      ; Check if Sprite is at right border
   CMP #$F5
-  BCS done_checking
+  BCS done_checking ; Stop drawing sprite if at border
 
-  INC player_x
+  INC player_x      ; Move right
 
 check_up:
-  LDA pad1
+  LDA pad1          ; Check if up is being pressed 
   AND #BTN_UP
-  BEQ check_down
+  BEQ check_down    ; Up is not pressed
 
   LDA #$06
-  STA player_state
+  STA player_state  ; Load state with 6 for death animation
 
 check_down:
-  LDA pad1
+  LDA pad1          ; Check if down is being pressed 
   AND #BTN_DOWN
-  BEQ check_jumping
+  BEQ check_jumping ; Down is not pressed
 
   LDA #$05
-  STA player_state
+  STA player_state  ; Load state with 5 for dancing animation
 
 check_jumping:
-  LDX jumping
+  LDX jumping       ; Check if jumping = 0
   CPX #$00
-  BEQ check_a ; branches jumping is 0 since negative is cleared
+  BEQ check_a       ; Check A only if jumping = 0
+  DEC player_y      ; Jump
   DEC player_y
   DEC player_y
-  DEC player_y
-  DEC jumping
+  DEC jumping       ; Decrease jumping until it reaches 0
 
-  LDA #$03
-  STA player_state
+  LDA #$03          
+  STA player_state  ; Load state with 3 for jumping animation
+
   JMP check_b
 
 check_a:
-  LDA pad1
+  LDA pad1          ; Check if a is being pressed 
   AND #BTN_A
-  BEQ check_b
+  BEQ check_b       ; A is not pressed
 
   LDX player_x
   LDY player_y
-  JSR CheckCollide
-  BEQ check_b
+  JSR CheckCollide  ; Check if player is colliding with a block
+  BEQ check_b       ; If not colliding, skip
 
-  LDA #$0E
+  LDA #$0E          ; Give jumping a value to jump (jump height)
   STA jumping
 
-check_b: ; K key
-  LDA pad1
+check_b: 
+  LDA pad1          ; Check if b is being pressed 
   AND #BTN_B
-  BEQ done_checking
+  BEQ done_checking ; B is not pressed
 
   LDA #$04
-  STA player_state
-  
-  ; JSR dead
+  STA player_state  ; Load state with 4 for punching animation
 
 done_checking:
 

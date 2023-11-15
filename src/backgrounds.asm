@@ -62,8 +62,10 @@
 	STA PPUADDR
 	STX PPUDATA
 
-	; 'Suns' ? (They're supposed to be suns with sunglasses lmao)
-	LDA PPUSTATUS
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	; Cool guy Sun
+	LDA PPUSTATUS  ; Sun 1
 	STY PPUADDR
 	LDA #$86
 	STA PPUADDR
@@ -91,7 +93,7 @@
 	LDX #$42
 	STX PPUDATA
 
-	LDA PPUSTATUS
+	LDA PPUSTATUS ; Sun 2
 	STY PPUADDR
 	LDA #$98
 	STA PPUADDR
@@ -119,6 +121,8 @@
 	LDX #$42
 	STX PPUDATA
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;	
+
 	LDX #$64
 	LDY #$83
 	JSR draw_cloud
@@ -131,11 +135,13 @@
 	LDY #$78
 	JSR draw_cloud
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-	LDY #$AD
-	LDX #$30
+; Each of the following are loops that travel from $Y1 to $Y2 placing down the purple tiles which are stored in X
+	LDY #$AD ; Y1 (platform)
+	LDX #$30 ; Purple block 
 
-platform:
+platform: 
 	LDA PPUSTATUS
 	LDA #$21
 	STA PPUADDR
@@ -143,11 +149,10 @@ platform:
 	STX PPUDATA
 
 	INY
-	CPY #$B3
+	CPY #$B3 ; Y2 (platform)
 	BNE platform
 
-	LDY #$08
-	LDX #$30
+	LDY #$08 ; Y1 (first row)
 
 first_row:
 	LDA PPUSTATUS
@@ -156,10 +161,10 @@ first_row:
 	STY PPUADDR
 	STX PPUDATA
 	INY
-	CPY #$18
+	CPY #$18 ; Y2 (first row)
 	BNE first_row
 
-	LDY #$29
+	LDY #$29 ; Y1 (second row)
 
 second_row:
 	LDA PPUSTATUS
@@ -168,10 +173,10 @@ second_row:
 	STY PPUADDR
 	STX PPUDATA
 	INY
-	CPY #$37
+	CPY #$37 ; Y2 (second row)
 	BNE second_row
 
-	LDY #$4A 
+	LDY #$4A ; Y1 (third row)
 
 third_row:
 	LDA PPUSTATUS
@@ -180,10 +185,10 @@ third_row:
 	STY PPUADDR
 	STX PPUDATA
 	INY
-	CPY #$56
+	CPY #$56 ; Y2 (third row)
 	BNE third_row
 
-	LDY #$6C
+	LDY #$6C ; Y1 (fourth row)
 
 fourth_row:
 	LDA PPUSTATUS
@@ -192,10 +197,10 @@ fourth_row:
 	STY PPUADDR
 	STX PPUDATA
 	INY
-	CPY #$74
+	CPY #$74 ; Y2 (fourth row)
 	BNE fourth_row
 
-	LDY #$8D
+	LDY #$8D ; Y1 (fifth row)
 
 fifth_row:
 	LDA PPUSTATUS
@@ -204,10 +209,12 @@ fifth_row:
 	STY PPUADDR
 	STX PPUDATA
 	INY
-	CPY #$93
+	CPY #$93 ; Y2 (fifth row)
 	BNE fifth_row
 
-	LDY #$23
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	LDY #$23  ; Load $23 into Y for easy access. This is where the attribute table is located.
 
 	LDA PPUSTATUS
 	STY PPUADDR
@@ -267,48 +274,49 @@ fifth_row:
 	RTS
 .endproc
 
+
+; Subroutine that uses the values in the X and Y registers to draw a cloud anywhere in the first 5 rows (2x2) of map
 .proc draw_cloud
+	LDA PPUSTATUS 
+	LDA #$20
+	STA PPUADDR
+	STX PPUADDR ; Draw in initial X value
+	LDA #$36 	; Top left tile
+	STA PPUDATA
+
+	INX			; Go to next tile
+
 	LDA PPUSTATUS
 	LDA #$20
 	STA PPUADDR
 	STX PPUADDR
-	LDA #$36
+	LDA #$37	; Top right tile
 	STA PPUDATA
-
-	INX
 
 	LDA PPUSTATUS
 	LDA #$20
 	STA PPUADDR
-	STX PPUADDR
-	LDA #$37
+	STY PPUADDR	; Initial Y position (starting bottom half)
+	LDA #$45	; Bottom left tile
 	STA PPUDATA
+
+	INY			; Go to next tile
 
 	LDA PPUSTATUS
 	LDA #$20
 	STA PPUADDR
 	STY PPUADDR
-	LDA #$45
-	STA PPUDATA
-
-	INY
-
-	LDA PPUSTATUS
-	LDA #$20
-	STA PPUADDR
-	STY PPUADDR
-	LDA #$46
+	LDA #$46	; Bottom middle tile
 	STA PPUDATA
 	
-	INY
+	INY			; Go to next tile
 
 	LDA PPUSTATUS
 	LDA #$20
 	STA PPUADDR
 	STY PPUADDR
-	LDA #$47
+	LDA #$47	; Bottom right tile
 	STA PPUDATA
-
 
 done:
 	RTS
