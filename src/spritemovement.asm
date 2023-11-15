@@ -23,7 +23,7 @@ is_jumping: .res 1
 .endproc
 
 .import read_controller1
-.import player_standing, player_walking_left, player_walking_right, player_left, player_right, punching, player_leaping, dance
+.import player_standing, player_walking_left, player_walking_right, player_left, player_right, punching, player_leaping, player_dance, player_death
 
 .proc nmi_handler
   LDA #$00
@@ -121,17 +121,17 @@ check_left:
   AND #BTN_LEFT   ; Filter out all but Left
   BEQ check_right ; If result is zero, left not pressed
 
-  LDA player_x
+  LDA player_x   ; Check if Sprite is at left border
   CMP #$05
   BCC done_checking
 
   LDA #$01
-  STA player_state
+  STA player_state ; Walking left animation
 
   LDA #$01
-  STA last_state
+  STA last_state ; Save state for future reference
 
-  DEC player_x    ; If the branch is not taken, move player left
+  DEC player_x   ; Move left
 
 
 check_right:
@@ -156,8 +156,8 @@ check_up:
   AND #BTN_UP
   BEQ check_down
 
-  DEC player_y
-  DEC player_y
+  LDA #$06
+  STA player_state
 
 check_down:
   LDA pad1
@@ -175,6 +175,7 @@ check_jumping:
   DEC player_y
   DEC player_y
   DEC jumping
+
   LDA #$03
   STA player_state
   JMP check_b
@@ -189,7 +190,6 @@ check_a:
   JSR CheckCollide
   BEQ check_b
 
-  
   LDA #$0E
   STA jumping
 
@@ -302,11 +302,15 @@ evaluate_animation:
   CPX #$05
   BEQ dance
 
-  JMP stand
+  CPX #$06
+  BEQ death
+
+  JSR player_standing
 
 go_left:
   JSR player_walking_left 
   JMP continue
+
 
 go_right:
   JSR player_walking_right
@@ -321,11 +325,13 @@ punch:
   JMP continue
 
 dance:
-  JSR dance
+  JSR player_dance
   JMP continue
 
-stand:
-  JSR player_standing
+death:
+  JSR player_death
+  JMP continue
+
 
 continue:
   STA $0202

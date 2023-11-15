@@ -4,7 +4,7 @@
 .importzp player_x, player_y, last_state, player_animation, counter
 
 .segment "CODE"
-.export player_standing, player_walking_left, player_walking_right, player_left, player_right, punching, player_leaping, dance
+.export player_standing, player_walking_left, player_walking_right, player_left, player_right, punching, player_leaping, player_dance, player_death
 
 .proc punching
     ; LDA last_state
@@ -72,7 +72,7 @@ return:
   RTS
 .endproc
 
-.proc dance
+.proc player_dance
   LDX player_animation
 
   CPX #$01 
@@ -438,6 +438,70 @@ done_drawing_player:
 done_drawing_tombstone:
   LDA #$42
   
+finish:
+  RTS
+.endproc
+
+.proc player_death
+  LDX player_animation
+
+  CPX #$01 
+  BEQ use_frame_1 
+
+  CPX #$02 
+  BEQ use_frame_2 
+
+  CPX #$03 
+  BEQ use_frame_1 
+
+  CPX #$04 
+  BEQ use_frame_2 
+
+  CPX #$05 
+  BEQ use_frame_1  
+
+  CPX #$06
+  BEQ use_frame_3 ; rip
+
+use_frame_1:
+  ; entity stand
+  LDA #$02
+  STA $0201
+  LDA #$03
+  STA $0205
+  LDA #$12
+  STA $0209
+  LDA #$13
+  STA $020d
+  LDA #$00
+
+  JMP finish
+
+use_frame_2:
+  LDA #$02
+  STA $0201
+  LDA #$03
+  STA $0205
+  LDA #$12
+  STA $0209
+  LDA #$13
+  STA $020d
+  LDA #$03
+
+  JMP finish
+
+use_frame_3:
+  ; entity rip
+  LDA #$23
+  STA $0201
+  LDA #$24
+  STA $0205
+  LDA #$33
+  STA $0209
+  LDA #$34
+  STA $020d
+  LDA #$02 
+
 finish:
   RTS
 .endproc
