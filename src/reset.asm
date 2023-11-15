@@ -1,3 +1,7 @@
+; File: reset_handler.asm
+; Description: This file contains NES assembly code for the reset handler,
+;              which is executed when the NES system is powered on or reset.
+
 .include "constants.inc"
 
 .segment "ZEROPAGE"
@@ -6,6 +10,12 @@
 .segment "CODE"
 .import main
 .export reset_handler
+
+; Subroutine: reset_handler
+; Description: The reset handler is executed when the NES system is powered on
+;              or reset. It initializes various settings, clears the sprite
+;              positions in OAM (Object Attribute Memory), and sets up initial
+;              values for player_x and player_y in the zero-page.
 .proc reset_handler
   SEI
   CLD
@@ -37,5 +47,5 @@ vblankwait2:
 	LDA #$6F
 	STA player_y
 
-  JMP main
+  JMP main  ; Jump to the main routine to start the game
 .endproc

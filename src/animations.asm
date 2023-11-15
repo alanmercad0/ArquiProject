@@ -1,11 +1,24 @@
+; File: animations.asm
+; Description: This file contains NES assembly code for various animation subroutines
+;              used in a game. The animations include player actions such as standing,
+;              walking, punching, leaping, dancing, and facing left or right. Each
+;              subroutine is responsible for setting up the appropriate animation frames
+;              based on the current state or animation frame of the player.
+;              The code makes use of constants defined in "constants.inc" and ZEROPAGE
+;              variables for efficient memory management on the NES platform.
+
+
 .include "constants.inc"
 
 .segment "ZEROPAGE"
 .importzp player_x, player_y, last_state, player_animation, counter
 
+; Animation Subroutines
 .segment "CODE"
 .export player_standing, player_walking_left, player_walking_right, player_left, player_right, punching, player_leaping, player_dance, player_death
 
+; Subroutine: punching
+; Description: Initiates the punching animation frames.
 .proc punching
     LDA last_state
     CMP #$02
@@ -37,6 +50,8 @@ done:
     RTS
 .endproc
 
+; Subroutine: player_leaping
+; Description: Initiates the leaping animation frames.
 .proc player_leaping
   LDA #$25
   STA $0201
@@ -50,6 +65,8 @@ done:
   RTS
 .endproc
 
+; Subroutine: player_standing
+; Description: Initiates the standing animation frames based on the player's last state.
 .proc player_standing
   LDA last_state
   CMP #$02
@@ -66,6 +83,8 @@ done:
   LDA #$40
   JMP return
 
+; Subroutine: dance
+; Description: Initiates the dance animation frames based on the player's animation frame.
 standing_right:
   LDA #$02
   STA $0201
@@ -130,6 +149,8 @@ done_drawing_player:
   RTS
 .endproc
 
+; Subroutine: player_walking_left
+; Description: Initiates the walking left animation frames based on the player's animation frame.
 .proc player_walking_left
   LDX player_animation
 
@@ -179,6 +200,8 @@ done_drawing_player:
   RTS
 .endproc
 
+; Subroutine: player_walking_right
+; Description: Initiates the walking right animation frames based on the player's animation frame.
 .proc player_walking_right
   LDX player_animation
 
@@ -228,6 +251,8 @@ done_drawing_player:
   RTS
 .endproc
 
+; Subroutine: player_right
+; Description: Initiates the animation frames for the player facing right based on the player's animation frame.
 .proc player_right
   LDX player_animation
 
@@ -342,6 +367,8 @@ finish:
   RTS
 .endproc
 
+; Subroutine: player_left
+; Description: Initiates the animation frames for the player facing left based on the player's animation frame.
 .proc player_left
   LDX player_animation
 
