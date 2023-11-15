@@ -254,6 +254,14 @@ done_checking:
   RTS
 .endproc
 
+; Subroutine: draw_player
+; Description: Draws the player character on the screen based on the player's
+;              current state and animation frame. The subroutine evaluates the
+;              player's state and animation frame, then calls the appropriate
+;              animation subroutine (e.g., walking, leaping, punching) to set
+;              up the animation frames. The player's position and animation
+;              frames are then stored in the appropriate memory locations to
+;              update the screen.
 .proc draw_player
   ; save registers
   PHP
@@ -263,7 +271,7 @@ done_checking:
   TYA
   PHA
 
-  ; Determine which frame to use based on player_animation counter
+  ; count frames until $10 then resets and increments player_animation in update_animation
   LDA #$10
   CMP frame_counter
   BEQ update_animation 
@@ -285,6 +293,7 @@ reset_animation:
   LDX #$00 
   STX player_animation
 
+; evaluates frames to use based on player_state, determined by controls
 evaluate_animation:
   LDX player_state
   CPX #$01
